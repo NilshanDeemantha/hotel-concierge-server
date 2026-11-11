@@ -12,6 +12,8 @@ functions/
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
+firestore.rules         database rules: no direct access from browsers
+scripts/deploy.sh       production release: rules, then functions
 ```
 
 ## Endpoints
@@ -54,11 +56,15 @@ The endpoints are then at `http://127.0.0.1:5001/thambili-bay-concierge/asia-sou
 
 ## Deploy
 
+Merging `master` into the `production` branch (through a pull request) runs the `release` workflow. It runs the tests, then `scripts/deploy.sh`, which deploys the Firestore rules first and the functions second.
+
+To deploy by hand:
+
 ```bash
-firebase deploy --only functions --project thambili-bay-concierge
+./scripts/deploy.sh
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero.
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` denies all direct access to the database; only this server reads and writes it.
 
 ## Secrets
 
