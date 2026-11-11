@@ -7,11 +7,23 @@ Backend for the Thambili Bay Hotel concierge bot, a demo AI assistant for a fict
 ```
 functions/
   main.py               every deployed function is defined here
+  signup.py             sign-up rules: validation, rate limit, account creation
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
 ```
+
+## Endpoints
+
+Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Health check |
+| `POST /register` | Creates an account and its `users/{uid}` profile. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
+
+Browsers can call the API only from the site's own addresses and from `localhost`.
 
 ## Run the tests
 
