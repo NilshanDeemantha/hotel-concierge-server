@@ -4,7 +4,29 @@
       "source": "functions",
       "codebase": "default",
       "runtime": "python313",
-      "ignore": ["venv", "tests", "__pycache__", ".pytest_cache", "requirements-dev.txt"]
+      "ignore": [
+        "venv",
+        "tests",
+        "__pycache__",
+        ".pytest_cache",
+        "requirements-dev.txt"
+      ]
     }
-  ]
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
+  }
 }

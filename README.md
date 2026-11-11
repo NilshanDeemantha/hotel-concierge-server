@@ -36,6 +36,22 @@ python3.13 -m venv venv
 ./venv/bin/python -m pytest
 ```
 
+## Run locally with the emulators
+
+Runs Authentication, Firestore and the functions on your machine. Nothing touches the live project. Needs Java 21 or newer.
+
+```bash
+firebase emulators:start --project thambili-bay-concierge
+```
+
+On macOS, set these first or the function crashes when it creates an account:
+
+```bash
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES NO_PROXY='*'
+```
+
+The endpoints are then at `http://127.0.0.1:5001/thambili-bay-concierge/asia-south1`.
+
 ## Deploy
 
 ```bash
