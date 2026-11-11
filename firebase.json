@@ -1,0 +1,10 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "python313",
+      "ignore": ["venv", "tests", "__pycache__", ".pytest_cache", "requirements-dev.txt"]
+    }
+  ]
+}

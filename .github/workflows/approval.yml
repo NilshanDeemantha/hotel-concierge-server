@@ -1,0 +1,19 @@
+name: approval
+
+# Blocks merging until the repository owner adds the "approved" label.
+# GitHub does not allow approving your own pull request, so the label is the approval.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions: {}
+
+jobs:
+  approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the "approved" label
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'approved') }}
+        run: |
+          echo "Add the 'approved' label to this pull request to allow merging."
+          exit 1
