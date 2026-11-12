@@ -1,0 +1,39 @@
+name: release
+
+# Deploys the Firestore rules and then the functions when changes are merged into the production branch.
+on:
+  push:
+    branches: [production]
+
+permissions:
+  contents: read
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install packages
+        run: |
+          python -m venv functions/venv
+          functions/venv/bin/pip install --quiet -r functions/requirements-dev.txt
+      - name: Run tests
+        working-directory: functions
+        run: ./venv/bin/python -m pytest
+      - name: Install the Firebase CLI
+        run: npm install --global firebase-tools@15.35.0
+      - name: Deploy rules, then functions
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_THAMBILI_BAY_CONCIERGE }}
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/service-account.json"
+          ./scripts/deploy.sh

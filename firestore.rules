@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Browsers and apps get no direct access to the database.
+    // Only this server reads and writes, through the Admin SDK, which is not subject to these rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

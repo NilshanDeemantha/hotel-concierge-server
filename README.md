@@ -7,11 +7,25 @@ Backend for the Thambili Bay Hotel concierge bot, a demo AI assistant for a fict
 ```
 functions/
   main.py               every deployed function is defined here
+  signup.py             sign-up rules: validation, rate limit, account creation
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
+firestore.rules         database rules: no direct access from browsers
+scripts/deploy.sh       production release: rules, then functions
 ```
+
+## Endpoints
+
+Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Health check |
+| `POST /register` | Creates an account and its `users/{uid}` profile. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
+
+Browsers can call the API only from the site's own addresses and from `localhost`.
 
 ## Run the tests
 
@@ -24,13 +38,33 @@ python3.13 -m venv venv
 ./venv/bin/python -m pytest
 ```
 
-## Deploy
+## Run locally with the emulators
+
+Runs Authentication, Firestore and the functions on your machine. Nothing touches the live project. Needs Java 21 or newer.
 
 ```bash
-firebase deploy --only functions --project thambili-bay-concierge
+firebase emulators:start --project thambili-bay-concierge
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero.
+On macOS, set these first or the function crashes when it creates an account:
+
+```bash
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES NO_PROXY='*'
+```
+
+The endpoints are then at `http://127.0.0.1:5001/thambili-bay-concierge/asia-south1`.
+
+## Deploy
+
+Merging `master` into the `production` branch (through a pull request) runs the `release` workflow. It runs the tests, then `scripts/deploy.sh`, which deploys the Firestore rules first and the functions second.
+
+To deploy by hand:
+
+```bash
+./scripts/deploy.sh
+```
+
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` denies all direct access to the database; only this server reads and writes it.
 
 ## Secrets
 
