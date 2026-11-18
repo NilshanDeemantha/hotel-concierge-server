@@ -5,7 +5,7 @@ import pytest
 from werkzeug.test import EnvironBuilder
 
 import main
-import signup
+from users import signup
 
 # The CORS wrapper reads Flask's current request, which the Functions runtime normally provides.
 app = flask.Flask(__name__)
@@ -77,47 +77,52 @@ def test_rate_limit_total():
         signup.check_rate_limit("new-ip", now=1000)
 
 
-@patch("signup.firestore")
-@patch("signup.auth.create_user")
+@patch("users.signup.firestore")
+@patch("users.signup.auth.create_user")
 def test_register_creates_account_and_profile(create_user, firestore):
     create_user.return_value = MagicMock(uid="uid-1")
     response = post(VALID)
     assert response.status_code == 201
     create_user.assert_called_once_with(email="nimal@example.com", password="correct-horse", display_name="Nimal")
-    document = firestore.client().collection("users").document
-    document.assert_called_once_with("uid-1")
-    document().set.assert_called_once_with(
-        {"name": "Nimal", "phone": "+94 77 123 4567", "created_at": firestore.SERVER_TIMESTAMP}
-    )
+    db = firestore.client()
+    db.collection("users").document.assert_any_call("uid-1")
+    batch = db.batch()
+    (profile_call, conversation_call) = batch.set.call_args_list
+    assert profile_call.args[1] == {
+        "name": "Nimal", "phone": "+94 77 123 4567", "created_at": firestore.SERVER_TIMESTAMP,
+    }
+    assert conversation_call.args[1]["uid"] == "uid-1"
+    assert conversation_call.args[1]["messageCount"] == 0
+    batch.commit.assert_called_once()
 
 
-@patch("signup.auth.create_user")
+@patch("users.signup.auth.create_user")
 def test_register_rejects_bad_input_without_creating(create_user):
     assert post({**VALID, "password": "short"}).status_code == 400
     create_user.assert_not_called()
 
 
-@patch("signup.firestore")
-@patch("signup.auth.create_user")
+@patch("users.signup.firestore")
+@patch("users.signup.auth.create_user")
 def test_register_reports_existing_email(create_user, firestore):
     create_user.side_effect = signup.auth.EmailAlreadyExistsError("exists", None, None)
     assert post(VALID).status_code == 409
 
 
-@patch("signup.auth.delete_user")
-@patch("signup.firestore")
-@patch("signup.auth.create_user")
+@patch("users.signup.auth.delete_user")
+@patch("users.signup.firestore")
+@patch("users.signup.auth.create_user")
 def test_register_removes_account_when_profile_fails(create_user, firestore, delete_user):
     create_user.return_value = MagicMock(uid="uid-1")
-    firestore.client().collection().document().set.side_effect = RuntimeError("firestore down")
+    firestore.client().batch().commit.side_effect = RuntimeError("firestore down")
     response = post(VALID)
     assert response.status_code == 500
     assert "firestore down" not in response.get_data(as_text=True)
     delete_user.assert_called_once_with("uid-1")
 
 
-@patch("signup.firestore")
-@patch("signup.auth.create_user")
+@patch("users.signup.firestore")
+@patch("users.signup.auth.create_user")
 def test_register_is_rate_limited(create_user, firestore):
     create_user.return_value = MagicMock(uid="uid-1")
     for _ in range(signup.MAX_PER_IP):
