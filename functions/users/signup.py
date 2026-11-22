@@ -1,10 +1,12 @@
-"""Sign-up: validates the input, limits abuse, then creates the account and its profile."""
+"""Sign-up: validates the input, limits abuse, then creates the account, profile and conversation."""
 
 import re
 import time
 from collections import defaultdict, deque
 
 from firebase_admin import auth, firestore
+
+from messages import chat
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_RE = re.compile(r"^[+0-9 ()-]{6,20}$")
@@ -69,7 +71,7 @@ def validate(data: object) -> dict[str, str]:
 
 
 def create_account(details: dict[str, str]) -> str:
-    """Creates the Firebase account and its users/{uid} profile. Returns the uid."""
+    """Creates the Firebase account, its users/{uid} profile and its conversation. Returns the uid."""
     try:
         user = auth.create_user(
             email=details["email"],
@@ -83,9 +85,14 @@ def create_account(details: dict[str, str]) -> str:
     if details["phone"]:
         profile["phone"] = details["phone"]
     try:
-        firestore.client().collection("users").document(user.uid).set(profile)
+        # One write, so the profile and the user's conversation exist together or not at all.
+        db = firestore.client()
+        batch = db.batch()
+        batch.set(db.collection("users").document(user.uid), profile)
+        batch.set(db.collection("conversations").document(), chat.conversation_fields(user.uid))
+        batch.commit()
     except Exception:
-        # Never leave an account without a profile.
+        # Never leave an account without a profile and conversation.
         auth.delete_user(user.uid)
         raise
     return user.uid

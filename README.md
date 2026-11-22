@@ -6,8 +6,15 @@ Backend for the Thambili Bay Hotel concierge bot, a demo AI assistant for a fict
 
 ```
 functions/
-  main.py               every deployed function is defined here
-  signup.py             sign-up rules: validation, rate limit, account creation
+  main.py               entry point: exports every deployed function, defines none
+  common.py             shared pieces: allowed browser origins, JSON replies
+  health.py             the health check function
+  users/
+    register.py        the register function
+    signup.py          sign-up rules: validation, rate limit, account, profile and conversation
+  messages/
+    send_message.py    the send_message function
+    chat.py            saving messages: conversation lookup, text rules, message documents
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
@@ -23,7 +30,8 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 | Endpoint | Purpose |
 |---|---|
 | `GET /health` | Health check |
-| `POST /register` | Creates an account and its `users/{uid}` profile. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
+| `POST /register` | Creates an account, its `users/{uid}` profile and its conversation. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
+| `POST /send_message` | Saves the signed-in user's message in their conversation. Needs the Firebase ID token as `Authorization: Bearer <token>`. JSON body: `text` (1 to 1000 characters). |
 
 Browsers can call the API only from the site's own addresses and from `localhost`.
 
