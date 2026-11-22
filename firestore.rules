@@ -2,10 +2,16 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Browsers and apps get no direct access to the database.
-    // Only this server reads and writes, through the Admin SDK, which is not subject to these rules.
+    // A signed-in user may read their own conversation and messages, so the chat can update live.
+    // Nobody writes from a browser: only this server writes, through the Admin SDK, which ignores these rules.
+    match /conversations/{id} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+    match /messages/{id} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
     match /{document=**} {
-      allow read, write: if false;
+      allow write: if false;
     }
   }
 }
