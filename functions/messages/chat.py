@@ -80,3 +80,41 @@ def add_user_message(uid: str, text: str) -> dict:
     )
     batch.commit()
     return {"messageId": message.id, "conversationId": conversation.id}
+
+
+def reply_id(message_id: str) -> str:
+    """Xenia's answer to a message has a fixed id, so a repeated task cannot answer twice."""
+    return f"{message_id}-reply"
+
+
+def set_typing(conversation, typing: bool) -> None:
+    conversation.update({"typing": typing})
+
+
+def save_reply(message: dict, message_id: str, text: str) -> None:
+    """Saves Xenia's answer to the user's message and clears her typing state, together."""
+    db = firestore.client()
+    conversation = db.collection("conversations").document(message["conversationId"])
+    reply = db.collection("messages").document(reply_id(message_id))
+    batch = db.batch()
+    batch.create(
+        reply,
+        {
+            "conversationId": message["conversationId"],
+            "uid": message["uid"],
+            "role": "assistant",
+            "content": text,
+            "createdAt": firestore.SERVER_TIMESTAMP,
+            "expireAt": _expire_at(),
+        },
+    )
+    batch.update(
+        conversation,
+        {
+            "typing": False,
+            "messageCount": firestore.Increment(1),
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+            "expireAt": _expire_at(),
+        },
+    )
+    batch.commit()

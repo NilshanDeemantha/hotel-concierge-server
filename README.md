@@ -14,6 +14,9 @@ functions/
     signup.py          sign-up rules: validation, rate limit, account, profile and conversation
   messages/
     send_message.py    the send_message function
+    answer_message.py  the answer task: runs a few seconds after a message and saves Xenia's answer
+    reply.py           the Gemini call
+    hotel.py           the hotel details and the one tool Xenia uses to look them up
     chat.py            saving messages: conversation lookup, text rules, message documents
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
@@ -33,7 +36,9 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 | `POST /register` | Creates an account, its `users/{uid}` profile and its conversation. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
 | `POST /send_message` | Saves the signed-in user's message in their conversation. Needs the Firebase ID token as `Authorization: Bearer <token>`. JSON body: `text` (1 to 1000 characters). |
 
-Browsers can call the API only from the site's own addresses and from `localhost`.
+`send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the hotel details tool) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
+
+Browsers can read only their own conversation and messages in Firestore (`firestore.rules`); they never write. Browsers can call the API only from the site's own addresses and from `localhost`.
 
 ## Run the tests
 
@@ -72,7 +77,7 @@ To deploy by hand:
 ./scripts/deploy.sh
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` denies all direct access to the database; only this server reads and writes it.
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages and denies every write; only this server writes.
 
 ## Secrets
 
@@ -81,6 +86,8 @@ Secrets live in Google Secret Manager, never in this repository:
 ```bash
 firebase functions:secrets:set SECRET_NAME --project thambili-bay-concierge
 ```
+
+The Gemini key is the `GEMINI_API_KEY` secret. Enable the Secret Manager and Cloud Tasks APIs on the project before the first deploy. Locally the emulator reads secrets from `functions/.secret.local` (keep it out of git); without it Xenia answers with an apology.
 
 ## Workflow
 

@@ -28,9 +28,10 @@ def test_validate_text_trims_and_checks():
     assert chat.validate_text({"text": "x" * chat.MAX_MESSAGE_CHARS})
 
 
+@patch("messages.send_message.enqueue_answer")
 @patch("messages.send_message.chat.add_user_message")
 @patch("messages.send_message.auth.verify_id_token")
-def test_send_message_saves_for_the_verified_user(verify, add):
+def test_send_message_saves_for_the_verified_user(verify, add, enqueue):
     verify.return_value = {"uid": "uid-1"}
     add.return_value = {"messageId": "m1", "conversationId": "c1"}
     response = post({"text": " Hello "})
@@ -38,6 +39,7 @@ def test_send_message_saves_for_the_verified_user(verify, add):
     assert response.get_json() == {"messageId": "m1", "conversationId": "c1"}
     verify.assert_called_once_with("good")
     add.assert_called_once_with("uid-1", "Hello")
+    enqueue.assert_called_once_with("m1")
 
 
 @patch("messages.send_message.chat.add_user_message")
