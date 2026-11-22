@@ -6,6 +6,7 @@ from firebase_functions import https_fn
 
 from common import POST_ONLY_CORS, json_response
 from messages import chat
+from messages.answer_message import enqueue_answer
 
 # 1000 characters can take 4 bytes each, plus the JSON around them.
 MAX_BODY_BYTES = 4400
@@ -33,6 +34,7 @@ def send_message(req: https_fn.Request) -> https_fn.Response:
         uid = _verified_uid(req)
         text = chat.validate_text(req.get_json(silent=True))
         saved = chat.add_user_message(uid, text)
+        enqueue_answer(saved["messageId"])
     except chat.ChatError as e:
         return json_response({"error": e.message}, e.status)
     except Exception:

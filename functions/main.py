@@ -17,7 +17,8 @@ options.set_global_options(
 
 # These imports stay below the options above: a function reads the global options when it is defined.
 from health import health  # noqa: E402
+from messages.answer_message import answer  # noqa: E402
 from messages.send_message import send_message  # noqa: E402
 from users.register import register  # noqa: E402
 
-__all__ = ["health", "register", "send_message"]
+__all__ = ["health", "register", "send_message", "answer"]
