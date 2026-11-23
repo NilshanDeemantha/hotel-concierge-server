@@ -62,7 +62,7 @@ venv/bin/python ../scripts/make_admin.py someone@example.com
 venv/bin/python ../scripts/make_admin.py someone@example.com --revoke
 ```
 
-The person must sign out and sign in again for the change to apply.
+The person must sign out and sign in again for the change to apply. Removing admin (`--revoke`) stops the admin functions at once, but the person's browser can still read the dashboard data through the Firestore rules until their sign-in token expires, up to an hour, because rules cannot check revocation.
 
 ## Run the tests
 

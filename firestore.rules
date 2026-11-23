@@ -9,7 +9,7 @@ service cloud.firestore {
     // - Nobody else may read anything. Guests cannot read `users`, `rooms` or `availability`.
     // Nobody writes from a browser, admins included: only this server writes, through the Admin SDK, which ignores these rules.
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
     match /conversations/{id} {
