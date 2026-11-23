@@ -1,6 +1,6 @@
 """Entry point. The Firebase CLI deploys every function exported here.
 
-Each function is defined in its own folder: users/ (sign-up) and messages/ (chat).
+Each function is defined in its own folder: users/ (sign-up), messages/ (chat) and admin/ (staff dashboard).
 """
 
 import firebase_admin
@@ -16,9 +16,28 @@ options.set_global_options(
 )
 
 # These imports stay below the options above: a function reads the global options when it is defined.
+from admin.endpoints import (  # noqa: E402
+    admin_get_availability,
+    admin_get_messages,
+    admin_list_conversations,
+    admin_list_rooms,
+    admin_save_room,
+    admin_set_availability,
+)
 from health import health  # noqa: E402
 from messages.answer_message import answer  # noqa: E402
 from messages.send_message import send_message  # noqa: E402
 from users.register import register  # noqa: E402
 
-__all__ = ["health", "register", "send_message", "answer"]
+__all__ = [
+    "health",
+    "register",
+    "send_message",
+    "answer",
+    "admin_list_conversations",
+    "admin_get_messages",
+    "admin_list_rooms",
+    "admin_save_room",
+    "admin_get_availability",
+    "admin_set_availability",
+]
