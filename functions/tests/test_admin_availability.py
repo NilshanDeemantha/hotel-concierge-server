@@ -121,12 +121,3 @@ def test_set_availability_conflict_writes_nothing(db):
     assert "2027-01-01" in raises(409, av.set_availability, BODY).message
     db.tx.set.assert_not_called()
 
-
-def test_get_availability(db):
-    for bad in [{}, {"month": "2026-13"}, {"month": "2026-1"}, {"month": 202612}]:
-        raises(400, av.get_availability, bad)
-    q = db.cols["availability"].where.return_value
-    q.stream.return_value = [snap(roomId="r1", month="2026-12", days={"21": {"status": "booked"}}),
-                             snap(roomId="r2", month="2026-12", days={"01": {"status": "blocked", "note": "paint"}})]
-    assert av.get_availability({"month": "2026-12"}) == {"month": "2026-12", "days": {
-        "r1": {"21": {"status": "booked"}}, "r2": {"01": {"status": "blocked", "note": "paint"}}}}

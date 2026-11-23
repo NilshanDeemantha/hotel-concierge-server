@@ -1,17 +1,15 @@
-"""Admin room availability: the `availability` collection, one doc per room and month."""
+"""Admin availability changes: the `availability` collection, one doc per room and month."""
 
 import re
 from datetime import date, timedelta
 
 from firebase_admin import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
 
 from admin.guard import AdminError
 
 MAX_NIGHTS = 60
 STATUSES = ("booked", "blocked", "free")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-MONTH = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 
 
 def _date(s) -> date:
@@ -54,14 +52,6 @@ def plan_changes(existing: dict[str, dict], room_id: str, nights: list[date], st
         entry = {"status": status, **({"note": note} if note else {})}
         plan.setdefault(doc_id(room_id, d), {})[day_key(d)] = entry
     return plan
-
-
-def get_availability(body: dict) -> dict:
-    month = body.get("month")
-    if not isinstance(month, str) or not MONTH.fullmatch(month):
-        raise AdminError(400, "Month must be YYYY-MM.")
-    docs = firestore.client().collection("availability").where(filter=FieldFilter("month", "==", month)).stream()
-    return {"month": month, "days": {(data := d.to_dict())["roomId"]: data.get("days", {}) for d in docs}}
 
 
 def _apply(transaction, db, room_id: str, nights: list[date], status: str, note: str | None) -> None:

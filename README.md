@@ -20,15 +20,14 @@ functions/
     chat.py            saving messages: conversation lookup, text rules, message documents
   admin/
     guard.py           shared check for every admin function: POST only, size limit, admin token, JSON, errors
-    endpoints.py       the six admin functions
-    conversations.py   lists conversations and reads their messages
-    rooms.py           lists and saves rooms
-    availability.py    reads and sets room availability per night
+    endpoints.py       the two admin functions (writes only; admins read from Firestore directly)
+    rooms.py           saves rooms
+    availability.py    sets room availability per night
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
-firestore.rules         database rules: no direct access from browsers
+firestore.rules         database rules: who may read what from a browser; no browser writes
 scripts/deploy.sh       production release: rules, then functions
 scripts/make_admin.py   grants or revokes the admin claim for an account
 ```
@@ -42,18 +41,16 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 | `GET /health` | Health check |
 | `POST /register` | Creates an account, its `users/{uid}` profile and its conversation. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
 | `POST /send_message` | Saves the signed-in user's message in their conversation. Needs the Firebase ID token as `Authorization: Bearer <token>`. JSON body: `text` (1 to 1000 characters). |
-| `POST /admin_list_conversations` | Admin. The 100 most recently updated conversations with the guest's name. No body needed. |
-| `POST /admin_get_messages` | Admin. The messages of one conversation. JSON body: `conversationId`. |
-| `POST /admin_list_rooms` | Admin. All rooms, sorted by number. No body needed. |
-| `POST /admin_save_room` | Admin. Creates a room, or updates it when `id` is given. JSON body: `number` (1 to 10 letters, digits or dashes, unique), `type`, `active` (optional, default `true`), `id` (optional). |
-| `POST /admin_get_availability` | Admin. The day entries of every room for one month. JSON body: `month` (`YYYY-MM`). |
+| `POST /admin_save_room` | Admin. Creates a room, or updates it when `id` is given. JSON body: `number` (1 to 10 letters, digits or dashes, unique), `type` (`Garden Room`, `Sea View Deluxe` or `Family Suite`), `active` (optional, `true` or `false`, default `true`), `id` (optional, the room to update; 404 if it does not exist). |
 | `POST /admin_set_availability` | Admin. Sets a room's status for a range of nights. JSON body: `roomId`, `from` and `to` (`YYYY-MM-DD`, `to` is the end date and is not included, at most 60 nights), `status` (`booked`, `blocked` or `free`), `note` (optional, up to 200 characters). |
 
 The `admin_*` endpoints need the Firebase ID token of an admin account as `Authorization: Bearer <token>`. They answer 401 without a valid token and 403 for an account that is not an admin.
 
 `send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the hotel details tool) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
 
-Browsers can read only their own conversation and messages in Firestore (`firestore.rules`); they never write. Browsers can call the API only from the site's own addresses and from `localhost`.
+Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability. Nobody can write from a browser.
+
+The admin site reads those collections live from Firestore; only room and availability changes go through the `admin_*` endpoints. Deploy the rules before the site, or the site's reads are denied. Browsers can call the API only from the site's own addresses and from `localhost`.
 
 ## Make someone an admin
 
@@ -104,7 +101,7 @@ To deploy by hand:
 ./scripts/deploy.sh
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages and denies every write; only this server writes.
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages, lets admins also read conversations, messages, users, rooms and availability, and denies every write; only this server writes.
 
 ## Secrets
 

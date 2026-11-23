@@ -1,4 +1,4 @@
-"""Admin room management: the `rooms` collection."""
+"""Admin room saving: the `rooms` collection."""
 
 import re
 
@@ -30,11 +30,6 @@ def validate_room(body: dict) -> dict:
 
 def _room(id: str, data: dict) -> dict:
     return {"id": id, "number": data["number"], "type": data["type"], "active": data["active"]}
-
-
-def list_rooms(body: dict) -> dict:
-    docs = firestore.client().collection("rooms").stream()
-    return {"rooms": sorted((_room(d.id, d.to_dict()) for d in docs), key=lambda r: r["number"])}
 
 
 def save_room(body: dict) -> dict:

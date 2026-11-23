@@ -57,11 +57,3 @@ def test_save_room_unknown_id_is_404(coll):
         rooms.save_room({"id": "ghost", "number": "101", "type": "Garden Room"})
     assert e.value.status == 404
 
-
-def test_list_rooms_sorted_by_number(coll):
-    coll.stream.return_value = [
-        doc("b", number="202", type="Garden Room", active=True, createdAt=1),
-        doc("a", number="101", type="Garden Room", active=False, createdAt=1)]
-    out = rooms.list_rooms({})
-    assert [r["number"] for r in out["rooms"]] == ["101", "202"]
-    assert out["rooms"][0] == {"id": "a", "number": "101", "type": "Garden Room", "active": False}
