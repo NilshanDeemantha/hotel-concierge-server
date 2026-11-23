@@ -28,6 +28,7 @@ def test_health_rejects_other_methods():
 ADMIN_FUNCTIONS = {
     "admin_save_room": "admin.rooms.save_room",
     "admin_set_availability": "admin.availability.set_availability",
+    "admin_send_message": "admin.staff_message.send_staff_message",
 }
 
 

@@ -20,9 +20,10 @@ functions/
     chat.py            saving messages: conversation lookup, text rules, message documents
   admin/
     guard.py           shared check for every admin function: POST only, size limit, admin token, JSON, errors
-    endpoints.py       the two admin functions (writes only; admins read from Firestore directly)
+    endpoints.py       the admin functions (writes only; admins read from Firestore directly)
     rooms.py           saves rooms
     availability.py    sets room availability per night
+    staff_message.py   saves a staff reply in a guest's conversation
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
@@ -43,6 +44,7 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 | `POST /send_message` | Saves the signed-in user's message in their conversation. Needs the Firebase ID token as `Authorization: Bearer <token>`. JSON body: `text` (1 to 1000 characters). |
 | `POST /admin_save_room` | Admin. Creates a room, or updates it when `id` is given. JSON body: `number` (1 to 10 letters, digits or dashes, unique), `type` (`Garden Room`, `Sea View Deluxe` or `Family Suite`), `active` (optional, `true` or `false`, default `true`), `id` (optional, the room to update; 404 if it does not exist). |
 | `POST /admin_set_availability` | Admin. Sets a room's status for a range of nights. JSON body: `roomId`, `from` and `to` (`YYYY-MM-DD`, `to` is the end date and is not included, at most 60 nights), `status` (`booked`, `blocked` or `free`), `note` (optional, up to 200 characters). |
+| `POST /admin_send_message` | Admin. Saves a staff reply in a guest's conversation, which the guest's chat shows live. JSON body: `conversationId`, `text` (1 to 1000 characters). Saved with the role `staff`; 404 if the conversation does not exist. |
 
 The `admin_*` endpoints need the Firebase ID token of an admin account as `Authorization: Bearer <token>`. They answer 401 without a valid token and 403 for an account that is not an admin.
 
@@ -50,7 +52,7 @@ The `admin_*` endpoints need the Firebase ID token of an admin account as `Autho
 
 Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability. Nobody can write from a browser.
 
-The admin site reads those collections live from Firestore; only room and availability changes go through the `admin_*` endpoints. Deploy the rules before the site, or the site's reads are denied. Browsers can call the API only from the site's own addresses and from `localhost`.
+The admin site reads those collections live from Firestore; only room, availability and staff-reply changes go through the `admin_*` endpoints. Deploy the rules before the site, or the site's reads are denied. Browsers can call the API only from the site's own addresses and from `localhost`.
 
 ## Make someone an admin
 
