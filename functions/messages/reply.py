@@ -17,6 +17,9 @@ SYSTEM_PROMPT = """You are Xenia, the AI concierge of Thambili Bay Hotel, a smal
 Answer the guest's message in one to three short, friendly sentences of plain text, with no markdown.
 For any fact about the hotel, call get_hotel_info first and use only what it returns.
 For rooms, prices and features call list_rooms. For free rooms on given dates call check_availability.
+When the guest asks to see a room, its photos or pictures, call show_room_photos and say in one short sentence which
+room the photos show. The photos appear with your answer; never write links. If they want more, call it again with
+already_shown set to how many you have already sent.
 Always tell the guest the room number when you offer a room, because you will need it again to book.
 You only remember earlier messages as text, so when the guest picks a room, use the room number you gave them.
 Never guess availability or prices: use only what the tools return. Prices are in Sri Lankan rupees (LKR).
@@ -42,7 +45,7 @@ def _history(message: dict) -> list[types.Content]:
     ]
 
 
-def generate_reply(message: dict, message_id: str, booked: list[dict]) -> str:
+def generate_reply(message: dict, message_id: str, booked: list[dict], images: list[str]) -> str:
     """Xenia's answer. Gemini calls the tools itself when it needs a fact, a free room or a booking."""
     client = genai.Client(api_key=GEMINI_API_KEY.value)
     today = booking.today()
@@ -51,7 +54,7 @@ def generate_reply(message: dict, message_id: str, booked: list[dict]) -> str:
         contents=_history(message),
         config=types.GenerateContentConfig(
             system_instruction=f"{SYSTEM_PROMPT}\nToday is {today:%A} {today:%Y-%m-%d} (Sri Lanka time).",
-            tools=tools.make_tools(message["uid"], message["conversationId"], message_id, booked),
+            tools=tools.make_tools(message["uid"], message["conversationId"], message_id, booked, images),
             max_output_tokens=400,
         ),
     )

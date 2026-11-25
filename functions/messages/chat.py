@@ -111,7 +111,7 @@ def recent_messages(conversation_id: str, limit: int = HISTORY_LIMIT) -> list[di
     return [{"role": d.get("role"), "content": d.get("content")} for d in reversed(found)]
 
 
-def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = None) -> None:
+def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = None, images: list[str] | None = None) -> None:
     """Saves Xenia's answer to the user's message and clears her typing state, together.
 
     `doc_id` is fixed per answer, so a repeated task cannot save the same answer twice.
@@ -127,6 +127,7 @@ def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = N
             "uid": message["uid"],
             "role": "assistant",
             "content": text,
+            **({"images": images} if images else {}),
             "createdAt": firestore.SERVER_TIMESTAMP,
             "expireAt": _expire_at(),
         },

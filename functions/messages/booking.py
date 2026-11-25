@@ -21,6 +21,9 @@ MAX_BOOKING_NIGHTS = 14
 MAX_DAYS_AHEAD = 365
 MAX_UPCOMING_PER_GUEST = 3  # a guest (or someone steering Xenia) cannot hold more bookings than this
 MAX_ROOMS = 200
+MAX_PHOTOS_PER_REPLY = 4  # photos sent in one message; the guest can ask for more
+# Room photos are uploaded by staff to our own Storage bucket; nothing else is ever sent to a guest as an image.
+PHOTO_URL_PREFIXES = ("https://firebasestorage.googleapis.com/v0/b/thambili-bay-concierge.firebasestorage.app/o/rooms%2F",)
 
 
 class BookingError(Exception):
@@ -83,6 +86,20 @@ def resolve_room(db, ref: str) -> str:
     if len(found) > 1:
         raise BookingError("More than one room has that name. Please use the room number.")
     return found[0]
+
+
+def room_photos(db, ref: str, skip: int = 0) -> dict:
+    """Up to MAX_PHOTOS_PER_REPLY photos of the room, skipping the first `skip`. Raises BookingError."""
+    room_id = resolve_room(db, ref)
+    room = db.collection("rooms").document(room_id).get().to_dict() or {}
+    urls = [u for u in room.get("photos", []) if isinstance(u, str) and u.startswith(PHOTO_URL_PREFIXES)]
+    if not urls:
+        raise BookingError("There are no photos of that room yet.")
+    chosen = urls[max(skip, 0):][:MAX_PHOTOS_PER_REPLY]
+    if not chosen:
+        raise BookingError("You have already seen all the photos of that room.")
+    return {"room": room.get("name") or room.get("type", ""), "number": room.get("number", ""), "urls": chosen,
+            "total": len(urls), "remaining": max(len(urls) - max(skip, 0) - len(chosen), 0)}
 
 
 def list_rooms(db) -> dict:
