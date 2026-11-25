@@ -69,6 +69,22 @@ def _active_rooms(db) -> list[tuple[str, dict]]:
     return sorted((r for r in rooms if r[1].get("active")), key=lambda r: r[1].get("number", ""))
 
 
+def resolve_room(db, ref: str) -> str:
+    """The room id for what the guest and Xenia call the room: its number (best), its name or its id.
+
+    Xenia only sees earlier messages as text, not the tool results, so she books by the room number she told the guest.
+    """
+    key = (ref or "").strip().lower()
+    rooms = _active_rooms(db)
+    found = [i for i, r in rooms if key in (i.lower(), str(r.get("number", "")).lower())]
+    found = found or [i for i, r in rooms if key and key == str(r.get("name", "")).lower()]
+    if not found:
+        raise BookingError("I could not find that room. Check the available rooms again and use the room number.")
+    if len(found) > 1:
+        raise BookingError("More than one room has that name. Please use the room number.")
+    return found[0]
+
+
 def list_rooms(db) -> dict:
     """Every room that can be booked, with its type, price, features and times, grouped by type."""
     by_type: dict[str, list] = {}

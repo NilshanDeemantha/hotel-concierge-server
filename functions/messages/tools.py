@@ -18,6 +18,7 @@ def make_tools(uid: str, conversation_id: str, message_id: str, booked: list[dic
         try:
             return fn()
         except booking.BookingError as e:
+            print(f"xenia tool refused: {e.message}")  # so a wrong refusal can be found in the logs
             return {"error": e.message}
         except Exception:
             print("xenia tool failed")
@@ -39,23 +40,25 @@ def make_tools(uid: str, conversation_id: str, message_id: str, booked: list[dic
         """
         return guarded(lambda: booking.find_rooms(firestore.client(), check_in, check_out, room_type))
 
-    def create_booking(room_id: str, check_in: str, check_out: str, guest_has_confirmed: bool) -> dict:
-        """Books one room for the guest. Only call it after check_availability showed the room is free AND the guest
-        has said yes to the exact room, dates and total price. If it fails, tell the guest why and offer other rooms.
+    def create_booking(room: str, check_in: str, check_out: str, guest_has_confirmed: bool) -> dict:
+        """Books one room for the guest. Call it as soon as the guest has said yes to the exact room, dates and total
+        price: the room may be taken by then, and this call checks that. If it fails, tell the guest exactly what it
+        returned and offer other rooms. Never say a room is unavailable or a booking failed without calling this.
 
         Args:
-            room_id: the roomId from check_availability.
+            room: the room number from check_availability (for example "202").
             check_in: arrival date, YYYY-MM-DD.
             check_out: departure date, YYYY-MM-DD.
             guest_has_confirmed: true only if the guest has clearly confirmed this exact booking in the chat.
         """
+        print(f"xenia create_booking: room={room!r} {check_in}..{check_out} confirmed={guest_has_confirmed!r}")
         if guest_has_confirmed is not True:
             return {"error": "Ask the guest to confirm the room, dates and total price first."}
 
         def run():
             made = booking.book_room(
                 firestore.client(), uid=uid, conversation_id=conversation_id, message_id=message_id,
-                room_id=room_id, check_in=check_in, check_out=check_out,
+                room_id=booking.resolve_room(firestore.client(), room), check_in=check_in, check_out=check_out,
             )
             if not any(b["reference"] == made["reference"] for b in booked):
                 booked.append(made)

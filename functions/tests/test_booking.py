@@ -244,11 +244,26 @@ def test_tools_never_raise_and_booking_needs_the_guests_yes(world):
         assert set(t) == {"get_hotel_info", "list_rooms", "check_availability", "create_booking"}
         assert "error" in t["create_booking"]("r1", "2026-12-20", "2026-12-23", False) and not booked
         assert "error" in t["check_availability"]("2026-12-23", "2026-12-20")
-        ok = t["create_booking"]("r1", "2026-12-20", "2026-12-23", True)
+        ok = t["create_booking"]("202", "2026-12-20", "2026-12-23", True)  # by room number, as Xenia has it
         assert ok["booked"] and len(booked) == 1
-        t["create_booking"]("r1", "2026-12-20", "2026-12-23", True)  # a repeat is not confirmed twice
+        t["create_booking"]("Ocean Breeze", "2026-12-20", "2026-12-23", True)  # a repeat, by name, is not confirmed twice
         assert len(booked) == 1
-        taken = tools.make_tools("u2", "c2", "m2", [])[-1]("r1", "2026-12-21", "2026-12-22", True)
+        taken = tools.make_tools("u2", "c2", "m2", [])[-1]("202", "2026-12-21", "2026-12-22", True)
         assert "error" in taken
+        assert "error" in tools.make_tools("u2", "c2", "m3", [])[-1]("999", "2026-12-21", "2026-12-22", True)  # inactive room
+        assert "error" in tools.make_tools("u2", "c2", "m4", [])[-1]("", "2026-12-21", "2026-12-22", True)
     with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
         assert "error" in tools.make_tools("u1", "c1", "m9", [])[1]()
+
+
+def test_resolve_room_by_number_name_or_id_and_only_active_rooms(world):
+    _, db = world
+    assert [bk.resolve_room(db, x) for x in ("202", " r1 ", "ocean breeze", "101")] == ["r1", "r1", "r1", "r2"]
+    for bad in ("999", "nope", ""):
+        with pytest.raises(bk.BookingError):
+            bk.resolve_room(db, bad)
+    db.store.put("rooms/r4", {**ROOM, "number": "303", "name": "Ocean Breeze"})  # same name as room 202
+    with pytest.raises(bk.BookingError) as e:
+        bk.resolve_room(db, "Ocean Breeze")
+    assert "room number" in e.value.message
+    assert bk.resolve_room(db, "303") == "r4"
