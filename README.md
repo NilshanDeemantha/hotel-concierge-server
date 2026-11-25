@@ -28,7 +28,7 @@ functions/
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
-firestore.rules         database rules: who may read what from a browser; no browser writes
+firestore.rules         database rules: who may read what from a browser; admins may write rooms and availability
 scripts/deploy.sh       production release: rules, then functions
 scripts/make_admin.py   grants or revokes the admin claim for an account
 ```
@@ -50,7 +50,7 @@ The `admin_*` endpoints need the Firebase ID token of an admin account as `Autho
 
 `send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the hotel details tool) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
 
-Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability. Nobody can write from a browser.
+Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability, and write rooms and availability (valid documents only). Nothing else can be written from a browser.
 
 The admin site reads those collections live from Firestore; only room, availability and staff-reply changes go through the `admin_*` endpoints. Deploy the rules before the site, or the site's reads are denied. Browsers can call the API only from the site's own addresses and from `localhost`.
 
@@ -103,7 +103,7 @@ To deploy by hand:
 ./scripts/deploy.sh
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages, lets admins also read conversations, messages, users, rooms and availability, and denies every write; only this server writes.
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages, lets admins also read conversations, messages, users, rooms and availability, and lets admins write rooms and availability; every other write is denied, so only this server writes the rest.
 
 ## Secrets
 

@@ -7,7 +7,7 @@ service cloud.firestore {
     // - A signed-in admin (an account with the `admin` claim set to true) may also read every conversation,
     //   every message, every guest profile in `users`, every room and all availability, for the staff dashboard.
     // - Nobody else may read anything. Guests cannot read `users`, `rooms` or `availability`.
-    // Writing from a browser: only an admin may write a room, and only a valid one (see validRoom). Nothing else
+    // Writing from a browser: only an admin may write a room or availability, and only a valid one (see validRoom, validAvailability). Nothing else
     // is written from a browser. The server writes everything else through the Admin SDK, which ignores these rules.
     function isAdmin() {
       return request.auth != null && request.auth.token.get('admin', false) == true;
@@ -31,6 +31,18 @@ service cloud.firestore {
         && d.active is bool;
     }
 
+    // One document per room and month, named <roomId>_<YYYY-MM>; `days` maps the day of the month ("05") to
+    // {status, note}. Rules cannot look inside a map, so what each day holds, and that a taken day is not
+    // overwritten, is checked by the web app (Availability.apply) and by admin_set_availability.
+    function validAvailability(id, d) {
+      return d.keys().hasOnly(['roomId', 'month', 'days', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['roomId', 'month', 'days'])
+        && d.roomId is string && d.month is string && d.month.matches('20[0-9]{2}-(0[1-9]|1[0-2])')
+        && id == d.roomId + '_' + d.month
+        && exists(/databases/$(database)/documents/rooms/$(d.roomId))
+        && d.days is map && d.days.size() <= 31;
+    }
+
     match /conversations/{id} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
       allow read: if isAdmin();
@@ -48,6 +60,7 @@ service cloud.firestore {
     }
     match /availability/{id} {
       allow read: if isAdmin();
+      allow create, update: if isAdmin() && validAvailability(id, request.resource.data);
     }
     match /{document=**} {
       allow write: if false;
