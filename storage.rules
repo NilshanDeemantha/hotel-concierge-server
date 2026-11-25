@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Room photos: anyone may view them (the guest site will show them); only an admin may upload or delete,
+    // and only an image of at most 5 MB. The server checks the saved links point here.
+    match /rooms/{roomId}/{file} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.token.get('admin', false) == true
+        && request.resource.contentType.matches('image/.*') && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+  }
+}
