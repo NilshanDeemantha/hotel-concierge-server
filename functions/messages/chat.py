@@ -108,7 +108,7 @@ def recent_messages(conversation_id: str, limit: int = HISTORY_LIMIT) -> list[di
         # answers from the current message alone.
         print("recent_messages: query failed, is the index built?")
         return []
-    return [{"role": d.get("role"), "content": d.get("content")} for d in reversed(found)]
+    return [{"role": d.get("role"), "content": d.get("content"), "images": d.to_dict().get("images", [])} for d in reversed(found)]
 
 
 def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = None, images: list[str] | None = None) -> None:

@@ -88,18 +88,19 @@ def resolve_room(db, ref: str) -> str:
     return found[0]
 
 
-def room_photos(db, ref: str, skip: int = 0) -> dict:
-    """Up to MAX_PHOTOS_PER_REPLY photos of the room, skipping the first `skip`. Raises BookingError."""
+def room_photos(db, ref: str, already_sent: frozenset | set = frozenset()) -> dict:
+    """Up to MAX_PHOTOS_PER_REPLY photos of the room that the guest has not been sent yet. Raises BookingError."""
     room_id = resolve_room(db, ref)
     room = db.collection("rooms").document(room_id).get().to_dict() or {}
     urls = [u for u in room.get("photos", []) if isinstance(u, str) and u.startswith(PHOTO_URL_PREFIXES)]
     if not urls:
         raise BookingError("There are no photos of that room yet.")
-    chosen = urls[max(skip, 0):][:MAX_PHOTOS_PER_REPLY]
-    if not chosen:
-        raise BookingError("You have already seen all the photos of that room.")
+    unseen = [u for u in urls if u not in already_sent]
+    if not unseen:
+        raise BookingError("You have already been sent all the photos of that room.")
+    chosen = unseen[:MAX_PHOTOS_PER_REPLY]
     return {"room": room.get("name") or room.get("type", ""), "number": room.get("number", ""), "urls": chosen,
-            "total": len(urls), "remaining": max(len(urls) - max(skip, 0) - len(chosen), 0)}
+            "total": len(urls), "remaining": len(unseen) - len(chosen)}
 
 
 def list_rooms(db) -> dict:

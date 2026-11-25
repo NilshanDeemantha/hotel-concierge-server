@@ -276,14 +276,15 @@ def photos(n, extra=()):
     return [f"{BUCKET}p{i}.jpg?alt=media&token=t" for i in range(n)] + list(extra)
 
 
-def test_room_photos_are_limited_and_only_from_our_bucket(world):
+def test_room_photos_are_limited_only_from_our_bucket_and_never_repeated(world):
     store, db = world
     store.put("rooms/r1", {**ROOM, "photos": photos(7, ["https://evil.example/x.jpg", "http://insecure", 5])})
     first = bk.room_photos(db, "202")
     assert first["urls"] == photos(4) and first["total"] == 7 and first["remaining"] == 3 and first["number"] == "202"
-    assert bk.room_photos(db, "202", skip=4)["urls"] == photos(7)[4:] and bk.room_photos(db, "202", skip=4)["remaining"] == 0
+    more = bk.room_photos(db, "202", set(first["urls"]))  # the next ones, none twice
+    assert more["urls"] == photos(7)[4:] and more["remaining"] == 0
     with pytest.raises(bk.BookingError):
-        bk.room_photos(db, "202", skip=7)  # all seen
+        bk.room_photos(db, "202", set(photos(7)))  # all sent
     with pytest.raises(bk.BookingError):
         bk.room_photos(db, "101")  # no photos at all
     with pytest.raises(bk.BookingError):
@@ -299,8 +300,12 @@ def test_show_room_photos_tool_collects_urls_for_the_answer_and_never_raises(wor
         got = t["show_room_photos"]("202")
         assert got == {"sent": 4, "room": "Ocean Breeze", "number": "202", "morePhotosAvailable": 2}
         assert sent == photos(4)
-        t["show_room_photos"]("202", 4)
+        t["show_room_photos"]("202")
         assert sent == photos(6)  # the next ones are added, none twice
+        assert "error" in t["show_room_photos"]("202")  # nothing left to send
+        earlier = {t_ for t_ in photos(2)}  # photos sent in earlier messages of the chat are skipped too
+        only = tools.make_tools("u1", "c1", "m2", [], [], frozenset(earlier))[2]("202")
+        assert only["sent"] == 4
         assert "error" in t["show_room_photos"]("nope")
     with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
         assert "error" in tools.make_tools("u1", "c1", "m9", [], [])[2]("202")
