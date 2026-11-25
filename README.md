@@ -2,6 +2,12 @@
 
 Backend for the Thambili Bay Hotel concierge bot, a demo AI assistant for a fictional hotel. Python on Cloud Functions for Firebase. The web frontend lives in a separate repository.
 
+## Xenia room tools and bookings
+
+Xenia can list the rooms (type, price, features, times), find the rooms free for given dates, and book one. A booking is made only after the guest says yes to the exact room, dates and total (the `create_booking` tool needs `guest_has_confirmed`). It writes the booking to `bookings` and marks every night as booked in `availability` in **one Firestore transaction**: if two guests ask for the same room and nights at the same moment, Firestore retries the second, which then sees the nights taken and gets a "no longer available" answer. The same message cannot book twice (the booking id comes from the message, room and dates), a guest can hold at most 3 upcoming bookings, a stay is at most 14 nights and at most 365 days ahead. After a booking the server (not the model) sends a second message with the exact details and a reference like `TB-1A2B3C`.
+
+Needs `firestore.indexes.json` deployed (`messages` by `conversationId` and `createdAt`); until the index is built Xenia answers from the current message alone. Admins can read `bookings` (rules). Not built yet: payment, cancelling or changing a booking, a bookings screen in the admin site, and emailing the confirmation.
+
 ## Layout
 
 ```
@@ -16,7 +22,9 @@ functions/
     send_message.py    the send_message function
     answer_message.py  the answer task: runs a few seconds after a message and saves Xenia's answer
     reply.py           the Gemini call
-    hotel.py           the hotel details and the one tool Xenia uses to look them up
+    hotel.py           the hotel details Xenia looks up
+    tools.py           the four tools Xenia can call: hotel facts, room list, free rooms for dates, booking
+    booking.py         room search and the booking transaction, and the confirmation text
     chat.py            saving messages: conversation lookup, text rules, message documents
   admin/
     guard.py           shared check for every admin function: POST only, size limit, admin token, JSON, errors
@@ -48,7 +56,7 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 
 The `admin_*` endpoints need the Firebase ID token of an admin account as `Authorization: Bearer <token>`. They answer 401 without a valid token and 403 for an account that is not an admin.
 
-`send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the hotel details tool) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
+`send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the last 12 messages of the conversation and the tools in `messages/tools.py`) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
 
 Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability, and write rooms and availability (valid documents only). Nothing else can be written from a browser.
 

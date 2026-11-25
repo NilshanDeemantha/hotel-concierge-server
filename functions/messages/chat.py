@@ -10,6 +10,7 @@ from firebase_admin import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 MAX_MESSAGE_CHARS = 1000
+HISTORY_LIMIT = 12  # messages of the conversation given to the model
 # Set a Firestore TTL policy on `expireAt` for both collections to make this delete anything.
 RETENTION = timedelta(days=30)
 
@@ -91,11 +92,33 @@ def set_typing(conversation, typing: bool) -> None:
     conversation.update({"typing": typing})
 
 
-def save_reply(message: dict, message_id: str, text: str) -> None:
-    """Saves Xenia's answer to the user's message and clears her typing state, together."""
+def recent_messages(conversation_id: str, limit: int = HISTORY_LIMIT) -> list[dict]:
+    """The latest messages of a conversation, oldest first, so Xenia remembers dates and rooms from earlier."""
+    db = firestore.client()
+    try:
+        found = (
+            db.collection("messages")
+            .where(filter=FieldFilter("conversationId", "==", conversation_id))
+            .order_by("createdAt", direction=firestore.Query.DESCENDING)
+            .limit(limit)
+            .get()
+        )
+    except Exception:
+        # The (conversationId, createdAt) index is deployed from firestore.indexes.json; until it is built Xenia
+        # answers from the current message alone.
+        print("recent_messages: query failed, is the index built?")
+        return []
+    return [{"role": d.get("role"), "content": d.get("content")} for d in reversed(found)]
+
+
+def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = None) -> None:
+    """Saves Xenia's answer to the user's message and clears her typing state, together.
+
+    `doc_id` is fixed per answer, so a repeated task cannot save the same answer twice.
+    """
     db = firestore.client()
     conversation = db.collection("conversations").document(message["conversationId"])
-    reply = db.collection("messages").document(reply_id(message_id))
+    reply = db.collection("messages").document(doc_id or reply_id(message_id))
     batch = db.batch()
     batch.create(
         reply,
