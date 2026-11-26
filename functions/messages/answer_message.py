@@ -6,6 +6,7 @@ from firebase_admin import firestore, functions
 from firebase_functions import options, tasks_fn
 
 from messages import booking, chat, reply
+from payments import config, notices
 
 REGION = "asia-south1"  # keep in step with main.py
 
@@ -24,7 +25,7 @@ def enqueue_answer(message_id: str) -> None:
 
 
 @tasks_fn.on_task_dispatched(
-    secrets=[reply.GEMINI_API_KEY],
+    secrets=[reply.GEMINI_API_KEY, config.STRIPE_SECRET_KEY],
     # One try only: a retry would pay for the model twice. A failed call saves an apology instead.
     retry_config=options.RetryConfig(max_attempts=1),
     rate_limits=options.RateLimits(max_concurrent_dispatches=2),
@@ -37,9 +38,10 @@ def answer(req: tasks_fn.CallableRequest) -> None:
         return  # message gone, or already answered
     chat.set_typing(db.collection("conversations").document(message["conversationId"]), True)
     images: list[str] = []  # photos the model asked to send; saved with the answer
+    resend: list[dict] = []  # bookings whose payment link the guest asked for again
     booked: list[dict] = []  # filled by the booking tool, so a booking is confirmed even if the model call then fails
     try:
-        text = reply.generate_reply(message, message_id, booked, images)
+        text = reply.generate_reply(message, message_id, booked, images, resend)
     except Exception:
         print("answer_message: the model call failed")
         import traceback
@@ -52,3 +54,7 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     # Each confirmation is its own message with a fixed id, written by us (not the model) so the details are exact.
     for b in booked:
         chat.save_reply(message, message_id, booking.confirmation_text(b), doc_id=f"{message_id}-confirmation-{b['reference']}")
+        # The payment link is a message of its own, after the details. The booking is held until it is paid.
+        notices.send_payment_link(db, b, f"{message_id}-payment-{b['reference']}")
+    for b in resend:
+        notices.send_payment_link(db, b, f"{message_id}-payment-{b['reference']}")
