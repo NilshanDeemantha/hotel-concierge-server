@@ -240,20 +240,20 @@ def test_tools_never_raise_and_booking_needs_the_guests_yes(world):
     store, db = world
     booked = []
     with patch.object(tools.firestore, "client", return_value=db):
-        t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", booked)}
-        assert set(t) == {"get_hotel_info", "list_rooms", "check_availability", "create_booking"}
+        t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", booked, [])}
+        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking"}
         assert "error" in t["create_booking"]("r1", "2026-12-20", "2026-12-23", False) and not booked
         assert "error" in t["check_availability"]("2026-12-23", "2026-12-20")
         ok = t["create_booking"]("202", "2026-12-20", "2026-12-23", True)  # by room number, as Xenia has it
         assert ok["booked"] and len(booked) == 1
         t["create_booking"]("Ocean Breeze", "2026-12-20", "2026-12-23", True)  # a repeat, by name, is not confirmed twice
         assert len(booked) == 1
-        taken = tools.make_tools("u2", "c2", "m2", [])[-1]("202", "2026-12-21", "2026-12-22", True)
+        taken = tools.make_tools("u2", "c2", "m2", [], [])[-1]("202", "2026-12-21", "2026-12-22", True)
         assert "error" in taken
-        assert "error" in tools.make_tools("u2", "c2", "m3", [])[-1]("999", "2026-12-21", "2026-12-22", True)  # inactive room
-        assert "error" in tools.make_tools("u2", "c2", "m4", [])[-1]("", "2026-12-21", "2026-12-22", True)
+        assert "error" in tools.make_tools("u2", "c2", "m3", [], [])[-1]("999", "2026-12-21", "2026-12-22", True)  # inactive room
+        assert "error" in tools.make_tools("u2", "c2", "m4", [], [])[-1]("", "2026-12-21", "2026-12-22", True)
     with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
-        assert "error" in tools.make_tools("u1", "c1", "m9", [])[1]()
+        assert "error" in tools.make_tools("u1", "c1", "m9", [], [])[1]()
 
 
 def test_resolve_room_by_number_name_or_id_and_only_active_rooms(world):
@@ -267,3 +267,45 @@ def test_resolve_room_by_number_name_or_id_and_only_active_rooms(world):
         bk.resolve_room(db, "Ocean Breeze")
     assert "room number" in e.value.message
     assert bk.resolve_room(db, "303") == "r4"
+
+
+BUCKET = "https://firebasestorage.googleapis.com/v0/b/thambili-bay-concierge.firebasestorage.app/o/rooms%2Fr1%2F"
+
+
+def photos(n, extra=()):
+    return [f"{BUCKET}p{i}.jpg?alt=media&token=t" for i in range(n)] + list(extra)
+
+
+def test_room_photos_are_limited_only_from_our_bucket_and_never_repeated(world):
+    store, db = world
+    store.put("rooms/r1", {**ROOM, "photos": photos(7, ["https://evil.example/x.jpg", "http://insecure", 5])})
+    first = bk.room_photos(db, "202")
+    assert first["urls"] == photos(4) and first["total"] == 7 and first["remaining"] == 3 and first["number"] == "202"
+    more = bk.room_photos(db, "202", set(first["urls"]))  # the next ones, none twice
+    assert more["urls"] == photos(7)[4:] and more["remaining"] == 0
+    with pytest.raises(bk.BookingError):
+        bk.room_photos(db, "202", set(photos(7)))  # all sent
+    with pytest.raises(bk.BookingError):
+        bk.room_photos(db, "101")  # no photos at all
+    with pytest.raises(bk.BookingError):
+        bk.room_photos(db, "999")  # inactive room
+
+
+def test_show_room_photos_tool_collects_urls_for_the_answer_and_never_raises(world):
+    store, db = world
+    store.put("rooms/r1", {**ROOM, "photos": photos(6)})
+    sent = []
+    with patch.object(tools.firestore, "client", return_value=db):
+        t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", [], sent)}
+        got = t["show_room_photos"]("202")
+        assert got == {"sent": 4, "room": "Ocean Breeze", "number": "202", "morePhotosAvailable": 2}
+        assert sent == photos(4)
+        t["show_room_photos"]("202")
+        assert sent == photos(6)  # the next ones are added, none twice
+        assert "error" in t["show_room_photos"]("202")  # nothing left to send
+        earlier = {t_ for t_ in photos(2)}  # photos sent in earlier messages of the chat are skipped too
+        only = tools.make_tools("u1", "c1", "m2", [], [], frozenset(earlier))[2]("202")
+        assert only["sent"] == 4
+        assert "error" in t["show_room_photos"]("nope")
+    with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
+        assert "error" in tools.make_tools("u1", "c1", "m9", [], [])[2]("202")

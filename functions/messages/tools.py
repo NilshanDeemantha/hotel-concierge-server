@@ -11,8 +11,12 @@ from firebase_admin import firestore
 from messages import booking, hotel
 
 
-def make_tools(uid: str, conversation_id: str, message_id: str, booked: list[dict]) -> list:
-    """The tool functions for one guest message. Bookings that succeed are appended to `booked`."""
+def make_tools(
+    uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str], already_sent: frozenset = frozenset()
+) -> list:
+    """The tool functions for one guest message. Bookings that succeed are appended to `booked`, and photos to send
+    with the answer to `images` (the model never writes image links itself). `already_sent` are the photos earlier
+    messages of this conversation carried, so asking for more never repeats one."""
 
     def guarded(fn):
         try:
@@ -29,6 +33,22 @@ def make_tools(uid: str, conversation_id: str, message_id: str, booked: list[dic
         """Lists the rooms of the hotel that can be booked: for each room type, every room with its number, name,
         price per night in LKR, features and check-in and check-out times. Use it to describe rooms and prices."""
         return guarded(lambda: booking.list_rooms(firestore.client()))
+
+    def show_room_photos(room: str) -> dict:
+        """Sends photos of a room to the guest in the chat. Call it whenever the guest asks to see a room, its photos
+        or pictures, also when they ask for more: each call sends photos they have not been sent yet. The photos are
+        attached to your answer automatically: never write links.
+
+        Args:
+            room: the room number (for example "001"), or the room name.
+        """
+        def run():
+            found = booking.room_photos(firestore.client(), room, set(already_sent) | set(images))
+            images.extend(u for u in found["urls"] if u not in images)
+            return {"sent": len(found["urls"]), "room": found["room"], "number": found["number"],
+                    "morePhotosAvailable": found["remaining"]}
+
+        return guarded(run)
 
     def check_availability(check_in: str, check_out: str, room_type: str = "") -> dict:
         """Finds the rooms that are free for every night of a stay, with the total price in LKR.
@@ -67,4 +87,4 @@ def make_tools(uid: str, conversation_id: str, message_id: str, booked: list[dic
 
         return guarded(run)
 
-    return [hotel.get_hotel_info, list_rooms, check_availability, create_booking]
+    return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking]
