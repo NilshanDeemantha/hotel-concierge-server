@@ -5,7 +5,7 @@ import random
 from firebase_admin import firestore, functions
 from firebase_functions import options, tasks_fn
 
-from messages import chat, reply
+from messages import booking, chat, reply
 
 REGION = "asia-south1"  # keep in step with main.py
 
@@ -36,12 +36,18 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     if not message or db.collection("messages").document(chat.reply_id(message_id)).get().exists:
         return  # message gone, or already answered
     chat.set_typing(db.collection("conversations").document(message["conversationId"]), True)
+    booked: list[dict] = []  # filled by the booking tool, so a booking is confirmed even if the model call then fails
     try:
-        text = reply.generate_reply(message["content"])
+        text = reply.generate_reply(message, message_id, booked)
     except Exception:
         print("answer_message: the model call failed")
         import traceback
 
         traceback.print_exc()
         text = reply.FALLBACK
+    if booked and text == reply.FALLBACK:
+        text = reply.BOOKED_FALLBACK  # the apology would contradict the booking that was just made
     chat.save_reply(message, message_id, text)
+    # Each confirmation is its own message with a fixed id, written by us (not the model) so the details are exact.
+    for b in booked:
+        chat.save_reply(message, message_id, booking.confirmation_text(b), doc_id=f"{message_id}-confirmation-{b['reference']}")
