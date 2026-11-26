@@ -9,7 +9,7 @@ Topic = Literal["rooms", "dining_and_activities", "contact_and_times", "getting_
 
 HOTEL = {
     "rooms": {
-        "note": "Eighteen rooms, all with breakfast. Prices are not available yet.",
+        "note": "Eighteen rooms, all with breakfast. Use list_rooms for the rooms, prices and features, and check_availability for free dates.",
         "room_types": [
             {"name": "Garden Room", "details": "Queen bed and a private terrace among the palms. Sleeps 2."},
             {"name": "Sea View Deluxe", "details": "King bed and a balcony over the bay. Sleeps 2."},

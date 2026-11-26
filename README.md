@@ -2,6 +2,12 @@
 
 Backend for the Thambili Bay Hotel concierge bot, a demo AI assistant for a fictional hotel. Python on Cloud Functions for Firebase. The web frontend lives in a separate repository.
 
+## Xenia room tools and bookings
+
+Xenia can list the rooms (type, price, features, times), find the rooms free for given dates, and book one. A booking is made only after the guest says yes to the exact room, dates and total (the `create_booking` tool needs `guest_has_confirmed`). It writes the booking to `bookings` and marks every night as booked in `availability` in **one Firestore transaction**: if two guests ask for the same room and nights at the same moment, Firestore retries the second, which then sees the nights taken and gets a "no longer available" answer. The same message cannot book twice (the booking id comes from the message, room and dates), a guest can hold at most 3 upcoming bookings, a stay is at most 14 nights and at most 365 days ahead. After a booking the server (not the model) sends a second message with the exact details and a reference like `TB-1A2B3C`.
+
+Needs `firestore.indexes.json` deployed (`messages` by `conversationId` and `createdAt`); until the index is built Xenia answers from the current message alone. Admins can read `bookings` (rules). Not built yet: payment, cancelling or changing a booking, a bookings screen in the admin site, and emailing the confirmation.
+
 ## Layout
 
 ```
@@ -16,14 +22,23 @@ functions/
     send_message.py    the send_message function
     answer_message.py  the answer task: runs a few seconds after a message and saves Xenia's answer
     reply.py           the Gemini call
-    hotel.py           the hotel details and the one tool Xenia uses to look them up
+    hotel.py           the hotel details Xenia looks up
+    tools.py           the four tools Xenia can call: hotel facts, room list, free rooms for dates, booking
+    booking.py         room search and the booking transaction, and the confirmation text
     chat.py            saving messages: conversation lookup, text rules, message documents
+  admin/
+    guard.py           shared check for every admin function: POST only, size limit, admin token, JSON, errors
+    endpoints.py       the admin functions (writes only; admins read from Firestore directly)
+    rooms.py           saves rooms
+    availability.py    sets room availability per night
+    staff_message.py   saves a staff reply in a guest's conversation
   requirements.txt      runtime packages, pinned
   requirements-dev.txt  adds test tools
   tests/                pytest tests
 firebase.json           tells the Firebase CLI what to deploy
-firestore.rules         database rules: no direct access from browsers
+firestore.rules         database rules: who may read what from a browser; admins may write rooms and availability
 scripts/deploy.sh       production release: rules, then functions
+scripts/make_admin.py   grants or revokes the admin claim for an account
 ```
 
 ## Endpoints
@@ -35,10 +50,29 @@ Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
 | `GET /health` | Health check |
 | `POST /register` | Creates an account, its `users/{uid}` profile and its conversation. JSON body: `name`, `phone` (optional), `email`, `password` (8 to 128 characters). Limited to 5 sign-ups per hour per address and 50 per hour in total. |
 | `POST /send_message` | Saves the signed-in user's message in their conversation. Needs the Firebase ID token as `Authorization: Bearer <token>`. JSON body: `text` (1 to 1000 characters). |
+| `POST /admin_save_room` | Admin. Creates a room, or updates it when `id` is given. JSON body: `number` (1 to 10 letters, digits or dashes, unique), `type` (`Garden Room`, `Sea View Deluxe` or `Family Suite`), `active` (optional, `true` or `false`, default `true`), `id` (optional, the room to update; 404 if it does not exist). |
+| `POST /admin_set_availability` | Admin. Sets a room's status for a range of nights. JSON body: `roomId`, `from` and `to` (`YYYY-MM-DD`, `to` is the end date and is not included, at most 60 nights), `status` (`booked`, `blocked` or `free`), `note` (optional, up to 200 characters). |
+| `POST /admin_send_message` | Admin. Saves a staff reply in a guest's conversation, which the guest's chat shows live. JSON body: `conversationId`, `text` (1 to 1000 characters). Saved with the role `staff`; 404 if the conversation does not exist. |
 
-`send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the hotel details tool) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
+The `admin_*` endpoints need the Firebase ID token of an admin account as `Authorization: Bearer <token>`. They answer 401 without a valid token and 403 for an account that is not an admin.
 
-Browsers can read only their own conversation and messages in Firestore (`firestore.rules`); they never write. Browsers can call the API only from the site's own addresses and from `localhost`.
+`send_message` also queues the `answer` task (Cloud Tasks) to run 2 to 6 seconds later. It sets `typing` on the conversation, asks Gemini (with the last 12 messages of the conversation and the tools in `messages/tools.py`) and saves the answer as a new message. The site listens to its own conversation and messages in Firestore, so the answer and the typing state arrive live.
+
+Browsers can read only their own conversation and messages in Firestore (`firestore.rules`). Admins (accounts with the `admin` claim) can additionally read all conversations, messages, users, rooms and availability, and write rooms and availability (valid documents only). Nothing else can be written from a browser.
+
+The admin site reads those collections live from Firestore; only room, availability and staff-reply changes go through the `admin_*` endpoints. Deploy the rules before the site, or the site's reads are denied. Browsers can call the API only from the site's own addresses and from `localhost`.
+
+## Make someone an admin
+
+The account must already exist. The script uses Application Default Credentials (`gcloud auth application-default login`) for the `thambili-bay-concierge` project:
+
+```bash
+cd functions
+venv/bin/python ../scripts/make_admin.py someone@example.com
+venv/bin/python ../scripts/make_admin.py someone@example.com --revoke
+```
+
+The person must sign out and sign in again for the change to apply. Removing admin (`--revoke`) stops the admin functions at once, but the person's browser can still read the dashboard data through the Firestore rules until their sign-in token expires, up to an hour, because rules cannot check revocation.
 
 ## Run the tests
 
@@ -77,7 +111,7 @@ To deploy by hand:
 ./scripts/deploy.sh
 ```
 
-Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages and denies every write; only this server writes.
+Functions run in `asia-south1` with at most one instance, to keep costs at zero. `firestore.rules` lets a signed-in user read only their own conversation and messages, lets admins also read conversations, messages, users, rooms and availability, and lets admins write rooms and availability; every other write is denied, so only this server writes the rest.
 
 ## Secrets
 

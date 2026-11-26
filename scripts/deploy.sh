@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production release: Firestore rules and indexes first, then the functions.
+# Production release: Firestore and Storage rules and indexes first, then the functions.
 # Rules go first so the database is locked down before any new code runs.
 # Extra arguments are passed to both deploys, for example: ./scripts/deploy.sh --account you@example.com
 set -euo pipefail
@@ -13,8 +13,8 @@ if [ ! -x functions/venv/bin/python ]; then
   functions/venv/bin/pip install --quiet -r functions/requirements.txt
 fi
 
-echo "==> Deploying Firestore rules and indexes"
-firebase deploy --only firestore --project "$PROJECT" --non-interactive "$@"
+echo "==> Deploying Firestore and Storage rules and indexes"
+firebase deploy --only firestore,storage --project "$PROJECT" --non-interactive "$@"
 
 echo "==> Deploying functions"
 # --force removes functions that no longer exist in the code and keeps the image cleanup policy set.

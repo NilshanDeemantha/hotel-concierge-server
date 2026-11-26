@@ -100,3 +100,12 @@ def test_add_user_message_creates_conversation_when_missing(firestore):
     assert "seq" not in saved
     assert batch.update.call_args.args[0] is conversation
     batch.commit.assert_called_once()
+
+
+@patch("messages.chat.firestore")
+def test_save_reply_stores_images_only_when_there_are_some(firestore):
+    message = {"conversationId": "c1", "uid": "u1"}
+    chat.save_reply(message, "m1", "Here you go", images=["https://x/1.jpg"])
+    chat.save_reply(message, "m2", "No photos")
+    first, second = (c.args[1] for c in firestore.client().batch().create.call_args_list)
+    assert first["images"] == ["https://x/1.jpg"] and "images" not in second

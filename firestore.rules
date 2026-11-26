@@ -2,13 +2,69 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // A signed-in user may read their own conversation and messages, so the chat can update live.
-    // Nobody writes from a browser: only this server writes, through the Admin SDK, which ignores these rules.
+    // Who may read what, from a browser:
+    // - A signed-in guest may read only their own conversation and messages, so the chat updates live.
+    // - A signed-in admin (an account with the `admin` claim set to true) may also read every conversation,
+    //   every message, every guest profile in `users`, every room and all availability, for the staff dashboard.
+    // - Nobody else may read anything. Guests cannot read `users`, `rooms` or `availability`.
+    // Writing from a browser: only an admin may write a room or availability, and only a valid one (see validRoom, validAvailability). Nothing else
+    // is written from a browser. The server writes everything else through the Admin SDK, which ignores these rules.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+
+    // Keep the lists and limits in step with src/content/admin.ts of the web app.
+    function validRoom(d) {
+      return d.keys().hasOnly(['number', 'name', 'type', 'amenities', 'price', 'checkIn', 'checkOut', 'notice', 'photos', 'active', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['number', 'name', 'type', 'amenities', 'price', 'checkIn', 'checkOut', 'notice', 'photos', 'active'])
+        && d.number is string && d.number.matches('[A-Za-z0-9-]{1,10}')
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.type in ['Garden Room', 'Sea View Deluxe', 'Family Suite']
+        && d.amenities is list && d.amenities.hasOnly(['Air conditioning', 'Ceiling fan', 'Wardrobe', 'Wi-Fi', 'TV', 'Hot water', 'Mini fridge', 'Tea and coffee', 'Safe', 'Desk', 'Balcony', 'Sea view', 'Bathtub', 'Hair dryer', 'Iron', 'Garden view', 'Pool view', 'Private bathroom', 'Free toiletries', 'Towels', 'Slippers', 'Mosquito net', 'Seating area', 'Telephone', 'Satellite channels', 'Daily housekeeping', 'Room service', 'Laundry service (paid)', 'Free parking', 'Breakfast included', 'Extra bed on request', 'Pets allowed', 'Non-smoking', 'Smoking allowed'])
+        && !(('Non-smoking' in d.amenities) && ('Smoking allowed' in d.amenities))
+        && d.price is int && d.price > 0 && d.price <= 10000000
+        && d.checkIn is string && d.checkIn.matches('([01][0-9]|2[0-3]):[0-5][0-9]')
+        && d.checkOut is string && d.checkOut.matches('([01][0-9]|2[0-3]):[0-5][0-9]')
+        && int(d.checkIn[0:2]) * 60 + int(d.checkIn[3:5]) - int(d.checkOut[0:2]) * 60 - int(d.checkOut[3:5]) >= 120
+        && d.notice is string && d.notice.size() <= 300
+        && d.photos is list && d.photos.size() >= 5 && d.photos.size() <= 10
+        && d.active is bool;
+    }
+
+    // One document per room and month, named <roomId>_<YYYY-MM>; `days` maps the day of the month ("05") to
+    // {status, note}. Rules cannot look inside a map, so what each day holds, and that a taken day is not
+    // overwritten, is checked by the web app (Availability.apply) and by admin_set_availability.
+    function validAvailability(id, d) {
+      return d.keys().hasOnly(['roomId', 'month', 'days', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['roomId', 'month', 'days'])
+        && d.roomId is string && d.month is string && d.month.matches('20[0-9]{2}-(0[1-9]|1[0-2])')
+        && id == d.roomId + '_' + d.month
+        && exists(/databases/$(database)/documents/rooms/$(d.roomId))
+        && d.days is map && d.days.size() <= 31;
+    }
+
     match /conversations/{id} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
     }
     match /messages/{id} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+    }
+    match /users/{id} {
+      allow read: if isAdmin();
+    }
+    match /rooms/{id} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && validRoom(request.resource.data);
+    }
+    // Bookings are written by Xenia (the server); admins may read them.
+    match /bookings/{id} {
+      allow read: if isAdmin();
+    }
+    match /availability/{id} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && validAvailability(id, request.resource.data);
     }
     match /{document=**} {
       allow write: if false;
