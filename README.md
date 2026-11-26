@@ -8,6 +8,28 @@ Xenia can list the rooms (type, price, features, times), find the rooms free for
 
 Needs `firestore.indexes.json` deployed (`messages` by `conversationId` and `createdAt`); until the index is built Xenia answers from the current message alone. Admins can read `bookings` (rules). Not built yet: payment, cancelling or changing a booking, a bookings screen in the admin site, and emailing the confirmation.
 
+## Payments (Stripe, one-time)
+
+After a booking Xenia's room is **reserved**, not confirmed. The server makes a Stripe Checkout Session (mode `payment`, one-time) for the booking's price, in LKR, and sends the guest a separate message with a **Pay now** button and the time the link expires (30 minutes, `PAYMENT_WINDOW` in `functions/payments/config.py`). Paying keeps the booking (`payment_pending` becomes `confirmed`, and the guest gets a receipt message). Not paying in time cancels it (`cancelled`), frees its nights and tells the guest.
+
+How the money side is kept safe:
+
+- Card details never reach us: the guest pays on a page hosted by Stripe.
+- The API key and the webhook signing secret live in Secret Manager (`STRIPE_SECRET_KEY`, `STRIPE_CHECKOUT_WEBHOOK_KEY`), never in code or the web app.
+- The price is worked out on the server from the room, never from the guest or the model; success and cancel addresses are fixed to our site.
+- A booking becomes paid only through the `stripe_webhook` function, which checks Stripe's signature on the raw body (and rejects old, replayed requests) before reading anything, ignores events of the other mode (test events on a live key and the other way round), and processes each event id once. It also checks that the paid session is the one we made, for the booking's amount, in LKR.
+- Stripe calls that change something use idempotency keys, so a retry never makes a second link or a second refund.
+- Every state change is a Firestore transaction that checks the current state first, so a repeated webhook, the sweep and a payment at the last second cannot confirm or cancel twice. If a payment arrives after the booking was cancelled, it is refunded in full.
+- `expire_unpaid_bookings` runs every 30 minutes as the backstop for the deadline (it expires the Stripe session first, so a link cannot be paid after the booking is cancelled). Stripe closes the session itself about 30 minutes after the booking (its minimum), and its `checkout.session.expired` event cancels the booking sooner than the sweep would. Each booking has a record in the `payments` collection (same id as the booking: Stripe session, payment intent, event and refund ids, the amount charged and the amount Stripe reports paid, currency, payer email, payment method type, `pending`/`paid`/`expired`/`refunded`/`mismatch`; no card data). A guest can hold at most 2 unpaid bookings.
+
+Setup (test mode first):
+
+1. In the Stripe dashboard (test mode) copy the secret key (`sk_test_...`) and run `firebase functions:secrets:set STRIPE_SECRET_KEY`.
+2. Run `firebase functions:secrets:set STRIPE_CHECKOUT_WEBHOOK_KEY` with a placeholder, deploy the functions, and copy the URL of `stripe_webhook` from the deploy output.
+3. In Stripe, Developers, Webhooks: add that URL as an endpoint with the events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` and `checkout.session.expired`. Copy its signing secret (`whsec_...`), set it with `firebase functions:secrets:set STRIPE_CHECKOUT_WEBHOOK_KEY` and redeploy `stripe_webhook`.
+4. Pay with the test card `4242 4242 4242 4242`, any future expiry and any CVC.
+5. For live: use the live keys and a live-mode endpoint with its own signing secret.
+
 ## Layout
 
 ```

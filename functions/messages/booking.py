@@ -7,7 +7,7 @@ sees the nights taken and gets a "no longer available" answer.
 """
 
 import hashlib
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from firebase_admin import firestore
@@ -15,6 +15,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 
 from admin import availability as av
 from admin.guard import AdminError
+from payments import config as pay
 
 TZ = ZoneInfo("Asia/Colombo")
 MAX_BOOKING_NIGHTS = 14
@@ -162,6 +163,8 @@ def _commit(transaction, db, booking_ref, room_id: str, nights: list[date], base
     except AdminError as e:
         raise BookingError(f"{e.message} Please choose another room or other dates.")
     for i, days in plan.items():
+        for entry in days.values():
+            entry["bookingId"] = booking_ref.id  # so cancelling an unpaid booking frees only its own nights
         transaction.set(refs[i], {"roomId": room_id, "month": i[-7:], "days": days}, merge=True)
     transaction.set(booking_ref, {**booking, "createdAt": firestore.SERVER_TIMESTAMP})
     return booking
@@ -173,16 +176,24 @@ def book_room(db, *, uid: str, conversation_id: str, message_id: str, room_id: s
     # shortcut: counted outside the transaction, so two bookings at the same instant could pass; the cap is an
     # abuse guard, not a promise. The nights themselves are checked inside the transaction.
     mine = db.collection("bookings").where(filter=FieldFilter("uid", "==", uid)).stream()
-    upcoming = [b for b in mine if (b.to_dict() or {}).get("checkOut", "") >= f"{today():%Y-%m-%d}"]
+    upcoming = [
+        b for b in mine
+        if (b.to_dict() or {}).get("checkOut", "") >= f"{today():%Y-%m-%d}" and (b.to_dict() or {}).get("status") != "cancelled"
+    ]
     bid = booking_id(message_id, room_id, check_in, check_out)
-    if len(upcoming) >= MAX_UPCOMING_PER_GUEST and bid not in {b.id for b in upcoming}:
+    others = {b.id for b in upcoming} - {bid}
+    if len(others) >= MAX_UPCOMING_PER_GUEST:
         raise BookingError("You already have the most bookings I can make for one guest. Please contact reception.")
+    if sum(1 for b in upcoming if b.id != bid and (b.to_dict() or {}).get("status") == "payment_pending") >= pay.MAX_PENDING_PER_GUEST:
+        raise BookingError("You have bookings waiting for payment. Please pay for them, or let them expire, before booking more.")
     profile = db.collection("users").document(uid).get()
     base = {
         "uid": uid, "conversationId": conversation_id, "roomId": room_id,
         "guestName": ((profile.to_dict() or {}).get("name") or "Guest")[:80] if profile.exists else "Guest",
         "checkIn": check_in, "checkOut": check_out, "nights": len(nights),
-        "status": "confirmed", "reference": f"TB-{bid[:6].upper()}",
+        # Held for PAYMENT_WINDOW: it becomes "confirmed" when the payment arrives, "cancelled" if it does not.
+        "status": "payment_pending", "paymentDeadline": datetime.now(timezone.utc) + pay.PAYMENT_WINDOW,
+        "bookingId": bid, "reference": f"TB-{bid[:6].upper()}",
     }
     # Wrapped per call: the decorator object keeps retry state, so sharing it across concurrent calls is unsafe.
     return firestore.transactional(_commit)(
@@ -195,13 +206,24 @@ def _long_date(iso: str) -> str:
     return f"{d.day} {d:%B %Y}"
 
 
+def find_guest_booking(db, uid: str, reference: str) -> dict:
+    """The guest's own booking with this reference. Raises BookingError."""
+    key = (reference or "").strip().upper()
+    for d in db.collection("bookings").where(filter=FieldFilter("uid", "==", uid)).stream():
+        if (d.to_dict() or {}).get("reference") == key:
+            return {**d.to_dict(), "bookingId": d.id}
+    raise BookingError("I could not find a booking with that reference.")
+
+
 def confirmation_text(b: dict) -> str:
     """The message sent to the guest after a booking. Written here, not by the model, so the details are exact."""
     return (
-        f"Your booking is confirmed. Reference {b['reference']}: {b['roomName'] or b['roomType']} "
+        f"Your room is reserved, and will be confirmed when you pay. Reference {b['reference']}: {b['roomName'] or b['roomType']} "
         f"({b['roomType']}, room {b['roomNumber']}) for {b['nights']} {'night' if b['nights'] == 1 else 'nights'}, "
         f"{_long_date(b['checkIn'])} to {_long_date(b['checkOut'])}, LKR {b['totalLKR']:,} in total "
         f"(LKR {b['pricePerNightLKR']:,} per night). "
         f"Check-in is from {b['checkInTime']} on {_long_date(b['checkIn'])} and check-out is by {b['checkOutTime']} "
-        f"on {_long_date(b['checkOut'])}. Please keep your reference for reception."
+        f"on {_long_date(b['checkOut'])}. The room is held until {pay.format_time(b['paymentDeadline'])}: pay with the "
+        "payment link in my next message before then, or the booking is cancelled automatically. "
+        "Please keep your reference for reception."
     )

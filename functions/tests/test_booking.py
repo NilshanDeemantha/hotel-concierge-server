@@ -1,113 +1,13 @@
 """Xenia's room tools and booking, run against a small in-memory Firestore that checks transactions the way
 Firestore does: a commit is refused (Aborted) if a document the transaction read has changed since."""
 
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from google.api_core.exceptions import Aborted
-
+from fakes import Db, Store, retrying
 from messages import booking as bk
 from messages import tools
-
-
-class Snap:
-    def __init__(self, id, data):
-        self.id, self._data, self.exists = id, data, data is not None
-
-    def to_dict(self):
-        return None if self._data is None else {k: (dict(v) if isinstance(v, dict) else v) for k, v in self._data.items()}
-
-
-class Store:
-    def __init__(self):
-        self.docs, self.versions, self.before_commit = {}, {}, None
-
-    def put(self, path, data):
-        self.docs[path] = data
-        self.versions[path] = self.versions.get(path, 0) + 1
-
-
-class Ref:
-    def __init__(self, store, path):
-        self.store, self.path, self.id = store, path, path.split("/")[1]
-
-    def get(self, transaction=None):
-        if transaction is not None:
-            transaction.reads[self.path] = self.store.versions.get(self.path, 0)
-        return Snap(self.id, self.store.docs.get(self.path))
-
-
-class Query:
-    def __init__(self, store, name, rows=None):
-        self.store, self.name, self.rows = store, name, rows
-
-    def _all(self):
-        if self.rows is not None:
-            return self.rows
-        return [Snap(p.split("/")[1], d) for p, d in self.store.docs.items() if p.startswith(self.name + "/")]
-
-    def where(self, filter):
-        keep = {"==": lambda a, b: a == b, "in": lambda a, b: a in b}[filter.op_string]
-        return Query(self.store, self.name, [s for s in self._all() if keep(s._data.get(filter.field_path), filter.value)])
-
-    def limit(self, n):
-        return self
-
-    def stream(self):
-        return iter(self._all())
-
-
-class Collection(Query):
-    def document(self, id):
-        return Ref(self.store, f"{self.name}/{id}")
-
-
-class Tx:
-    def __init__(self, store):
-        self.store, self.reads, self.writes = store, {}, []
-
-    def set(self, ref, data, merge=False):
-        self.writes.append((ref.path, data, merge))
-
-    def commit(self):
-        if self.store.before_commit:
-            hook, self.store.before_commit = self.store.before_commit, None
-            hook()  # another guest's booking lands while this one is still in flight
-        if any(self.store.versions.get(p, 0) != v for p, v in self.reads.items()):
-            raise Aborted("contention")
-        for path, data, merge in self.writes:
-            current = dict(self.store.docs.get(path) or {})
-            if merge:
-                days = {**current.get("days", {}), **data.get("days", {})}
-                data = {**current, **data, "days": days}
-            self.store.put(path, data)
-
-
-class Db:
-    def __init__(self, store):
-        self.store = store
-
-    def collection(self, name):
-        return Collection(self.store, name)
-
-    def transaction(self):
-        return Tx(self.store)
-
-
-def retrying(fn):
-    """What firestore.transactional does: run again from the start if the commit is aborted."""
-    def run(tx, *args):
-        for _ in range(5):
-            tx = Tx(tx.store)
-            try:
-                result = fn(tx, *args)
-                tx.commit()
-                return result
-            except Aborted:
-                continue
-        raise Aborted("gave up")
-    return run
 
 
 ROOM = {"number": "202", "name": "Ocean Breeze", "type": "Sea View Deluxe", "price": 32000, "active": True,
@@ -176,11 +76,13 @@ def test_bad_stays_are_refused(world, a, b, why):
 def test_book_room_saves_booking_and_marks_every_night(world):
     store, db = world
     made = book(db)
-    assert made["status"] == "confirmed" and made["reference"].startswith("TB-") and made["totalLKR"] == 96000
+    assert made["status"] == "payment_pending" and made["reference"].startswith("TB-") and made["totalLKR"] == 96000
+    assert made["paymentDeadline"] > datetime.now(timezone.utc) and made["bookingId"]
     saved = store.docs[f"bookings/{bk.booking_id('m1', 'r1', '2026-12-20', '2026-12-23')}"]
     assert saved["uid"] == "u1" and saved["guestName"] == "Amara Perera" and saved["createdAt"] == "NOW"
     days = store.docs["availability/r1_2026-12"]["days"]
     assert set(days) == {"20", "21", "22"} and all(d["status"] == "booked" for d in days.values())
+    assert {d["bookingId"] for d in days.values()} == {made["bookingId"]}  # so cancelling frees only these nights
     assert made["reference"] in days["20"]["note"] and "Amara Perera" in days["20"]["note"]
 
 
@@ -221,6 +123,28 @@ def test_inactive_missing_and_unknown_rooms_cannot_be_booked(world):
 
 def test_a_guest_cannot_hold_more_than_the_cap(world):
     _, db = world
+    with patch.object(bk.pay, "MAX_PENDING_PER_GUEST", 99):  # this test is about the total cap, not unpaid ones
+        _cap(db)
+
+
+def test_a_guest_cannot_hold_more_unpaid_bookings_than_the_pending_cap(world):
+    store, db = world
+    for i in range(bk.pay.MAX_PENDING_PER_GUEST):
+        book(db, msg=f"p{i}", room="r1" if i % 2 == 0 else "r2", a=f"2026-12-{10 + i * 3}", b=f"2026-12-{12 + i * 3}")
+    with pytest.raises(bk.BookingError) as e:
+        book(db, msg="one-more", room="r2", a="2027-02-01", b="2027-02-03")
+    assert "waiting for payment" in e.value.message
+    for path, data in store.docs.items():  # once they are paid, the guest can book again
+        if path.startswith("bookings/"):
+            store.put(path, {**data, "status": "confirmed"})
+    assert book(db, msg="after-paying", room="r2", a="2027-02-01", b="2027-02-03")["status"] == "payment_pending"
+    for path, data in store.docs.items():  # a cancelled booking counts for nothing
+        if path.startswith("bookings/"):
+            store.put(path, {**data, "status": "cancelled"})
+    assert book(db, msg="after-cancel", room="r1", a="2027-03-01", b="2027-03-02")
+
+
+def _cap(db):
     for i in range(bk.MAX_UPCOMING_PER_GUEST):
         book(db, msg=f"m{i}", room="r1" if i % 2 == 0 else "r2", a=f"2026-12-{10 + i * 3}", b=f"2026-12-{12 + i * 3}")
     with pytest.raises(bk.BookingError):
@@ -232,7 +156,8 @@ def test_confirmation_text_has_the_exact_details(world):
     _, db = world
     text = bk.confirmation_text(book(db))
     for part in ("TB-", "Ocean Breeze", "room 202", "3 nights", "20 December 2026", "23 December 2026",
-                 "LKR 96,000", "LKR 32,000 per night", "from 14:00", "by 11:00"):
+                 "LKR 96,000", "LKR 32,000 per night", "from 14:00", "by 11:00", "reserved", "will be confirmed when you pay",
+                 "Sri Lanka time", "cancelled automatically"):
         assert part in text
 
 
@@ -241,17 +166,17 @@ def test_tools_never_raise_and_booking_needs_the_guests_yes(world):
     booked = []
     with patch.object(tools.firestore, "client", return_value=db):
         t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", booked, [])}
-        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking"}
+        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link"}
         assert "error" in t["create_booking"]("r1", "2026-12-20", "2026-12-23", False) and not booked
         assert "error" in t["check_availability"]("2026-12-23", "2026-12-20")
         ok = t["create_booking"]("202", "2026-12-20", "2026-12-23", True)  # by room number, as Xenia has it
-        assert ok["booked"] and len(booked) == 1
+        assert ok["reserved"] and "payBy" in ok and len(booked) == 1
         t["create_booking"]("Ocean Breeze", "2026-12-20", "2026-12-23", True)  # a repeat, by name, is not confirmed twice
         assert len(booked) == 1
-        taken = tools.make_tools("u2", "c2", "m2", [], [])[-1]("202", "2026-12-21", "2026-12-22", True)
+        taken = tools.make_tools("u2", "c2", "m2", [], [])[-2]("202", "2026-12-21", "2026-12-22", True)
         assert "error" in taken
-        assert "error" in tools.make_tools("u2", "c2", "m3", [], [])[-1]("999", "2026-12-21", "2026-12-22", True)  # inactive room
-        assert "error" in tools.make_tools("u2", "c2", "m4", [], [])[-1]("", "2026-12-21", "2026-12-22", True)
+        assert "error" in tools.make_tools("u2", "c2", "m3", [], [])[-2]("999", "2026-12-21", "2026-12-22", True)  # inactive room
+        assert "error" in tools.make_tools("u2", "c2", "m4", [], [])[-2]("", "2026-12-21", "2026-12-22", True)
     with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
         assert "error" in tools.make_tools("u1", "c1", "m9", [], [])[1]()
 
