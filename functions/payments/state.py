@@ -49,7 +49,7 @@ def mark_paid(db, session, event_id: str | None = None) -> str:
     outcome, b = firestore.transactional(_paid_tx)(db.transaction(), db, booking_ref, session, event_id)
     if outcome == "confirmed_now":
         notices.paid(b)
-    elif outcome == "cancelled" and not b.get("refundedAt"):
+    elif outcome == "cancelled" and not b.get("refundedAt") and not b.get("paidAt"):
         # Paid after the booking was cancelled and the room released: give the money back.
         refund = stripe.Refund.create(
             payment_intent=session.get("payment_intent"), api_key=config.STRIPE_SECRET_KEY.value,
@@ -68,9 +68,9 @@ def mark_paid(db, session, event_id: str | None = None) -> str:
     return outcome
 
 
-def _cancel_tx(transaction, db, booking_ref, reason: str) -> dict | None:
+def _cancel_tx(transaction, db, booking_ref, reason: str, allowed=("payment_pending",), extra=None) -> dict | None:
     snap = booking_ref.get(transaction=transaction)
-    if not snap.exists or snap.to_dict().get("status") != "payment_pending":
+    if not snap.exists or snap.to_dict().get("status") not in allowed:
         return None  # paid, already cancelled or unknown: nothing to undo
     b = snap.to_dict()
     nights = av.parse_nights(b["checkIn"], b["checkOut"])
@@ -83,17 +83,22 @@ def _cancel_tx(transaction, db, booking_ref, reason: str) -> dict | None:
         if mine:
             transaction.set(ref, {"days": mine}, merge=True)
     transaction.set(db.collection("payments").document(booking_ref.id), {"status": "expired"}, merge=True)
-    transaction.update(booking_ref, {"status": "cancelled", "cancelledAt": firestore.SERVER_TIMESTAMP, "cancelReason": reason})
+    transaction.update(booking_ref, {"status": "cancelled", "cancelledAt": firestore.SERVER_TIMESTAMP, "cancelReason": reason, **(extra or {})})
     return b
+
+
+def cancel(db, booking_id: str, reason: str, allowed=("payment_pending",), extra=None) -> dict | None:
+    """Cancels a booking in one of the allowed states and frees its nights. None if it was in another state."""
+    booking_ref = db.collection("bookings").document(booking_id)
+    return firestore.transactional(_cancel_tx)(db.transaction(), db, booking_ref, reason, allowed, extra)
 
 
 def cancel_unpaid(db, booking_id: str, reason: str) -> bool:
     """Cancels a booking that is still waiting for payment and frees its nights. False if there was nothing to cancel."""
-    booking_ref = db.collection("bookings").document(booking_id)
-    b = firestore.transactional(_cancel_tx)(db.transaction(), db, booking_ref, reason)
+    b = cancel(db, booking_id, reason)
     if b is None:
         return False
-    notices.cancelled(b)
+    notices.cancelled(b, reason)
     return True
 
 

@@ -39,9 +39,10 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     chat.set_typing(db.collection("conversations").document(message["conversationId"]), True)
     images: list[str] = []  # photos the model asked to send; saved with the answer
     resend: list[dict] = []  # bookings whose payment link the guest asked for again
+    cancelled: list[tuple] = []  # (booking, refund quote) of cancellations the guest asked for
     booked: list[dict] = []  # filled by the booking tool, so a booking is confirmed even if the model call then fails
     try:
-        text = reply.generate_reply(message, message_id, booked, images, resend)
+        text = reply.generate_reply(message, message_id, booked, images, resend, cancelled)
     except Exception:
         print("answer_message: the model call failed")
         import traceback
@@ -58,3 +59,6 @@ def answer(req: tasks_fn.CallableRequest) -> None:
         notices.send_payment_link(db, b, f"{message_id}-payment-{b['reference']}")
     for b in resend:
         notices.send_payment_link(db, b, f"{message_id}-payment-{b['reference']}")
+    # What happened to the money after a cancellation, written by us so the amounts are exact.
+    for b, q in cancelled:
+        notices.guest_cancelled(b, q)

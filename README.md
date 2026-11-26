@@ -154,3 +154,9 @@ The Gemini key is the `GEMINI_API_KEY` secret. Enable the Secret Manager and Clo
 ## License
 
 No license. The source is public for review only. All rights reserved.
+
+### Refund policy and cancelling
+
+`functions/payments/policy.py` holds the policy (`TIERS`) and its text. Percent refunded by days before check-in: 30 or more days 100%, 21 to 29 days 90%, 14 to 20 days 75%, 7 to 13 days 50%, fewer than 7 days 25% (10%, 25%, 50% and 75% deducted). The text is in the payment message and in `get_hotel_info("cancellation_and_refunds")`, so Xenia quotes it when asked.
+
+A guest cancels through Xenia: `check_cancellation` (no changes, gives the refund amount) then, after the guest says yes, `cancel_booking`. The booking becomes `cancelled`, only its nights are freed, and a partial Stripe refund of the policy amount goes to the original card (idempotency key `guest-refund-<bookingId>`). The booking and its `payments` record keep `refundLKR`, `refundPercent`, `refundStatus` (`done`/`failed`) and the Stripe refund id. If Stripe fails the cancellation stands, `refundStatus` is `failed` and the guest is told reception will send the refund: check bookings with `refundStatus == "failed"` by hand. A stay that has started cannot be cancelled by Xenia. Unpaid bookings cancel with nothing to refund.

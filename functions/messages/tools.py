@@ -9,18 +9,19 @@ import traceback
 from firebase_admin import firestore
 
 from messages import booking, hotel
-from payments import config as pay
+from payments import config as pay, refunds
 
 
 def make_tools(
     uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str],
-    already_sent: frozenset = frozenset(), resend: list[dict] | None = None,
+    already_sent: frozenset = frozenset(), resend: list[dict] | None = None, cancelled: list[tuple] | None = None,
 ) -> list:
     """The tool functions for one guest message. Bookings that succeed are appended to `booked`, and photos to send
     with the answer to `images` (the model never writes image links itself). `already_sent` are the photos earlier
     messages of this conversation carried, so asking for more never repeats one. Bookings whose payment link the guest
-    asked for again are appended to `resend`."""
+    asked for again are appended to `resend`, and bookings the guest cancelled to `cancelled` as (booking, refund quote)."""
     resend = resend if resend is not None else []
+    cancelled = cancelled if cancelled is not None else []
 
     def guarded(fn):
         try:
@@ -112,4 +113,38 @@ def make_tools(
 
         return guarded(run)
 
-    return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link]
+    def check_cancellation(reference: str) -> dict:
+        """Says what would happen if the guest cancelled this booking today: the refund in LKR and the percentage
+        deducted under the refund policy. It changes nothing. Call it when the guest wants to cancel or asks what
+        they would get back, then tell them the numbers and ask them to confirm before calling cancel_booking.
+
+        Args:
+            reference: the booking reference, for example "TB-1A2B3C".
+        """
+        return guarded(lambda: refunds.quote_for(booking.find_guest_booking(firestore.client(), uid, reference)))
+
+    def cancel_booking(reference: str, guest_has_confirmed: bool) -> dict:
+        """Cancels the guest's booking, releases the room and refunds what the refund policy allows. Call it only
+        after check_cancellation, once the guest has clearly said yes to the refund amount. A message with the
+        details is sent automatically.
+
+        Args:
+            reference: the booking reference, for example "TB-1A2B3C".
+            guest_has_confirmed: true only if the guest has clearly confirmed the cancellation and the refund amount.
+        """
+        print(f"xenia cancel_booking: {reference!r} confirmed={guest_has_confirmed!r}")
+        if guest_has_confirmed is not True:
+            return {"error": "Tell the guest the refund amount and ask them to confirm the cancellation first."}
+
+        def run():
+            db = firestore.client()
+            found = booking.find_guest_booking(db, uid, reference)
+            q = refunds.cancel(db, found)
+            cancelled.append((found, q))
+            return {"cancelled": True, "refundLKR": q["refundLKR"],
+                    "note": "The booking is cancelled. A message with the refund details follows automatically."}
+
+        return guarded(run)
+
+    return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
+            check_cancellation, cancel_booking]

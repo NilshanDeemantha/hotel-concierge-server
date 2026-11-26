@@ -15,7 +15,10 @@ from google.api_core.exceptions import AlreadyExists
 from werkzeug.test import EnvironBuilder
 
 import main  # noqa: F401  (also starts firebase_admin, as in test_chat)
-from payments import checkout, config, notices, state, webhook
+from datetime import date
+
+from messages import booking as bk
+from payments import checkout, config, notices, policy, refunds, state, webhook
 
 app = flask.Flask(__name__)
 SECRET, HOOK_SECRET = "sk_test_123", "whsec_test"
@@ -335,3 +338,107 @@ def test_the_payment_record_follows_the_booking_from_pending_to_paid_or_expired(
 def test_the_hold_is_30_minutes_and_the_sweep_runs_every_30_minutes():
     assert config.PAYMENT_WINDOW == timedelta(minutes=30)
     assert webhook.expire_unpaid_bookings.__firebase_endpoint__.scheduleTrigger["schedule"] == "every 30 minutes"
+
+
+# ---- the refund policy and cancelling ----
+
+@pytest.mark.parametrize("days, percent", [(60, 100), (30, 100), (29, 90), (21, 90), (20, 75), (14, 75), (13, 50), (7, 50), (6, 25), (0, 25)])
+def test_the_refund_follows_the_days_before_check_in(days, percent):
+    q = policy.quote("2026-12-20", 96000, date(2026, 12, 20) - timedelta(days=days))
+    assert q["refundPercent"] == percent and q["deductPercent"] == 100 - percent and q["refundLKR"] == 96000 * percent // 100
+
+
+def test_a_stay_that_has_started_gets_no_refund_and_cannot_be_cancelled(world):
+    store, db, _ = world
+    store.put("bookings/b1", booking(status="confirmed", paymentIntentId="pi_1"))
+    with patch.object(refunds.bk, "today", return_value=date(2026, 12, 21)), pytest.raises(bk.BookingError):
+        refunds.quote_for({**store.docs["bookings/b1"], "bookingId": "b1"})
+
+
+def paid_booking(store, **changes):
+    store.put("bookings/b1", booking(status="confirmed", paymentIntentId="pi_1", paidAt=NOW, **changes))
+    store.put("payments/b1", {"status": "paid", "bookingId": "b1"})
+    return {**store.docs["bookings/b1"], "bookingId": "b1"}
+
+
+def test_cancelling_a_paid_booking_refunds_the_policy_amount_once_and_frees_its_nights(world):
+    store, db, sent = world
+    found = paid_booking(store)
+    with patch.object(refunds.bk, "today", return_value=date(2026, 11, 21)), \
+         patch.object(refunds.stripe.Refund, "create", return_value=MagicMock(id="re_1")) as refund:  # 29 days: 10% deducted
+        q = refunds.cancel(db, found)
+        with pytest.raises(bk.BookingError):
+            refunds.cancel(db, found)  # a second cancel does nothing and refunds nothing
+    refund.assert_called_once()
+    assert refund.call_args.kwargs["amount"] == 8_640_000 and refund.call_args.kwargs["payment_intent"] == "pi_1"
+    assert refund.call_args.kwargs["idempotency_key"] == "guest-refund-b1"
+    b = store.docs["bookings/b1"]
+    assert b["status"] == "cancelled" and b["refundLKR"] == 86400 and b["refundPercent"] == 90 and b["refundStatus"] == "done"
+    assert store.docs["payments/b1"]["status"] == "partially_refunded" and store.docs["payments/b1"]["refundedAmountMinor"] == 8_640_000
+    assert set(days(store)) == {"24", "05"}  # only this booking's nights were freed
+    notices.guest_cancelled(found, q)
+    text = sent.call_args.args[3]
+    assert "LKR 86,400 of the LKR 96,000" in text and "10% is deducted" in text and "29 days" in text
+
+
+def test_a_full_refund_when_cancelling_a_month_ahead(world):
+    store, db, _ = world
+    found = paid_booking(store)
+    with patch.object(refunds.bk, "today", return_value=date(2026, 11, 20)), \
+         patch.object(refunds.stripe.Refund, "create", return_value=MagicMock(id="re_1")) as refund:
+        refunds.cancel(db, found)
+    assert refund.call_args.kwargs["amount"] == 9_600_000 and store.docs["payments/b1"]["status"] == "refunded"
+
+
+def test_when_stripe_fails_the_booking_stays_cancelled_and_the_refund_is_flagged(world):
+    store, db, sent = world
+    found = paid_booking(store)
+    with patch.object(refunds.bk, "today", return_value=date(2026, 12, 15)), \
+         patch.object(refunds.stripe.Refund, "create", side_effect=stripe.APIConnectionError("down")):
+        q = refunds.cancel(db, found)  # within a week: 75% deducted
+    assert q["refunded"] is False and q["refundLKR"] == 24000
+    assert store.docs["bookings/b1"]["status"] == "cancelled" and store.docs["bookings/b1"]["refundStatus"] == "failed"
+    assert store.docs["payments/b1"]["status"] == "refund_failed"
+    notices.guest_cancelled(found, q)
+    assert "could not be sent automatically" in sent.call_args.args[3] and "LKR 24,000" in sent.call_args.args[3]
+
+
+def test_cancelling_an_unpaid_booking_releases_the_room_and_closes_the_link(world):
+    store, db, sent = world
+    found = {**store.docs["bookings/b1"], "bookingId": "b1"}
+    with patch.object(refunds.checkout.stripe.checkout.Session, "expire") as expire, \
+         patch.object(refunds.stripe.Refund, "create") as refund:
+        q = refunds.cancel(db, found)
+    expire.assert_called_once()
+    refund.assert_not_called()
+    assert q["refundLKR"] == 0 and store.docs["bookings/b1"]["status"] == "cancelled" and set(days(store)) == {"24", "05"}
+    assert "as you asked" in sent.call_args.args[3]
+
+
+def test_a_paid_event_repeated_after_a_guest_cancelled_is_not_refunded_again(world):
+    store, db, _ = world
+    paid_booking(store)
+    store.put("bookings/b1", {**store.docs["bookings/b1"], "status": "cancelled"})
+    with patch.object(state.stripe.Refund, "create") as refund:
+        assert state.mark_paid(db, session()) == "cancelled"
+    refund.assert_not_called()
+
+
+def test_the_payment_message_and_the_hotel_info_give_the_refund_policy(world):
+    from messages import hotel
+    link = {"url": "https://checkout.stripe.com/c/pay/x", "expiresAt": LATER.isoformat()}
+    text = notices.payment_text(booking(), link)
+    for part in ("full refund", "10%", "25%", "50%", "75%"):
+        assert part in text
+    assert hotel.get_hotel_info("cancellation_and_refunds")["policy"] == policy.POLICY
+
+
+def test_cancel_booking_needs_the_guests_yes_and_touches_nothing_without_it():
+    from messages import tools
+    cancel = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", [], [])}["cancel_booking"]
+    assert "error" in cancel("TB-AAAAAA", False) and "error" in cancel("TB-AAAAAA", None)
+
+
+def test_xenia_always_has_the_refund_policy_in_her_instructions():
+    from messages import reply
+    assert policy.POLICY in reply.SYSTEM_PROMPT  # the model skipped the tool once and made up terms

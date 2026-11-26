@@ -5,7 +5,9 @@ Keep these facts in step with the website (src/content in the web repository).
 
 from typing import Literal
 
-Topic = Literal["rooms", "dining_and_activities", "contact_and_times", "getting_here"]
+from payments import policy
+
+Topic = Literal["rooms", "dining_and_activities", "contact_and_times", "getting_here", "cancellation_and_refunds"]
 
 HOTEL = {
     "rooms": {
@@ -35,6 +37,10 @@ HOTEL = {
         "reception": "Open 24 hours",
         "note": "The hotel is fictional, so the phone number and email are placeholders.",
     },
+    "cancellation_and_refunds": {
+        "policy": policy.POLICY,
+        "how_to_cancel": "The guest can ask Xenia to cancel a booking; she gives the refund amount first and asks them to confirm.",
+    },
     "getting_here": {
         "Galle Fort": "10 minutes by tuk-tuk",
         "Galle railway station": "15 minutes by car",
@@ -48,6 +54,7 @@ def get_hotel_info(topic: Topic) -> dict:
 
     Args:
         topic: rooms (room types), dining_and_activities (restaurant, spa, pool, trips and classes),
-            contact_and_times (address, phone, email, check-in, check-out) or getting_here (travel times).
+            contact_and_times (address, phone, email, check-in, check-out), getting_here (travel times) or
+            cancellation_and_refunds (the cancellation and refund policy).
     """
     return HOTEL.get(topic, {"error": "Unknown topic"})
