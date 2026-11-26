@@ -111,6 +111,29 @@ def recent_messages(conversation_id: str, limit: int = HISTORY_LIMIT) -> list[di
     return [{"role": d.get("role"), "content": d.get("content"), "images": d.to_dict().get("images", [])} for d in reversed(found)]
 
 
+def save_notice(conversation_id: str, uid: str, doc_id: str, text: str, **extra) -> None:
+    """Saves a message from the server (a payment link, a receipt) in a conversation. Raises AlreadyExists if repeated."""
+    db = firestore.client()
+    batch = db.batch()
+    batch.create(
+        db.collection("messages").document(doc_id),
+        {
+            "conversationId": conversation_id,
+            "uid": uid,
+            "role": "assistant",
+            "content": text,
+            **extra,
+            "createdAt": firestore.SERVER_TIMESTAMP,
+            "expireAt": _expire_at(),
+        },
+    )
+    batch.update(
+        db.collection("conversations").document(conversation_id),
+        {"messageCount": firestore.Increment(1), "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": _expire_at()},
+    )
+    batch.commit()
+
+
 def save_reply(message: dict, message_id: str, text: str, doc_id: str | None = None, images: list[str] | None = None) -> None:
     """Saves Xenia's answer to the user's message and clears her typing state, together.
 

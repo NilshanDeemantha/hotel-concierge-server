@@ -9,14 +9,18 @@ import traceback
 from firebase_admin import firestore
 
 from messages import booking, hotel
+from payments import config as pay
 
 
 def make_tools(
-    uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str], already_sent: frozenset = frozenset()
+    uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str],
+    already_sent: frozenset = frozenset(), resend: list[dict] | None = None,
 ) -> list:
     """The tool functions for one guest message. Bookings that succeed are appended to `booked`, and photos to send
     with the answer to `images` (the model never writes image links itself). `already_sent` are the photos earlier
-    messages of this conversation carried, so asking for more never repeats one."""
+    messages of this conversation carried, so asking for more never repeats one. Bookings whose payment link the guest
+    asked for again are appended to `resend`."""
+    resend = resend if resend is not None else []
 
     def guarded(fn):
         try:
@@ -82,9 +86,30 @@ def make_tools(
             )
             if not any(b["reference"] == made["reference"] for b in booked):
                 booked.append(made)
-            return {"booked": True, "reference": made["reference"], "room": made["roomName"] or made["roomType"],
-                    "totalLKR": made["totalLKR"], "note": "A confirmation message with the details is sent automatically."}
+            return {"reserved": True, "reference": made["reference"], "room": made["roomName"] or made["roomType"],
+                    "totalLKR": made["totalLKR"],
+                    "payBy": pay.format_time(made["paymentDeadline"]),
+                    "note": "The room is reserved but NOT confirmed until the guest pays. A message with the details and a "
+                            "separate message with the payment link are sent automatically."}
 
         return guarded(run)
 
-    return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking]
+    def send_payment_link(reference: str) -> dict:
+        """Sends the guest their payment link again, for a booking that is still waiting for payment. Call it when the
+        guest asks for the link again or says they lost it. The link is sent as a separate message automatically:
+        never write links yourself.
+
+        Args:
+            reference: the booking reference, for example "TB-1A2B3C".
+        """
+        def run():
+            found = booking.find_guest_booking(firestore.client(), uid, reference)
+            if found.get("status") != "payment_pending":
+                return {"status": found.get("status"), "note": "Nothing is waiting for payment on this booking."}
+            if not any(b["reference"] == found["reference"] for b in resend):
+                resend.append(found)
+            return {"status": "payment_pending", "note": "The payment link is being sent as a separate message."}
+
+        return guarded(run)
+
+    return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link]
