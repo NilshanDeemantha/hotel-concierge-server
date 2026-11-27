@@ -166,17 +166,17 @@ def test_tools_never_raise_and_booking_needs_the_guests_yes(world):
     booked = []
     with patch.object(tools.firestore, "client", return_value=db):
         t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", booked, [])}
-        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link"}
+        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking"}
         assert "error" in t["create_booking"]("r1", "2026-12-20", "2026-12-23", False) and not booked
         assert "error" in t["check_availability"]("2026-12-23", "2026-12-20")
         ok = t["create_booking"]("202", "2026-12-20", "2026-12-23", True)  # by room number, as Xenia has it
         assert ok["reserved"] and "payBy" in ok and len(booked) == 1
         t["create_booking"]("Ocean Breeze", "2026-12-20", "2026-12-23", True)  # a repeat, by name, is not confirmed twice
         assert len(booked) == 1
-        taken = tools.make_tools("u2", "c2", "m2", [], [])[-2]("202", "2026-12-21", "2026-12-22", True)
+        taken = tools.make_tools("u2", "c2", "m2", [], [])[4]("202", "2026-12-21", "2026-12-22", True)
         assert "error" in taken
-        assert "error" in tools.make_tools("u2", "c2", "m3", [], [])[-2]("999", "2026-12-21", "2026-12-22", True)  # inactive room
-        assert "error" in tools.make_tools("u2", "c2", "m4", [], [])[-2]("", "2026-12-21", "2026-12-22", True)
+        assert "error" in tools.make_tools("u2", "c2", "m3", [], [])[4]("999", "2026-12-21", "2026-12-22", True)  # inactive room
+        assert "error" in tools.make_tools("u2", "c2", "m4", [], [])[4]("", "2026-12-21", "2026-12-22", True)
     with patch.object(tools.firestore, "client", side_effect=RuntimeError("down")):
         assert "error" in tools.make_tools("u1", "c1", "m9", [], [])[1]()
 
