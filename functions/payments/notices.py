@@ -37,16 +37,19 @@ def send_payment_link(db, booking: dict, doc_id: str) -> None:
         _send(booking, doc_id, f"I could not create the payment link for booking {booking['reference']} just now. "
                                "Ask me to send it again, and pay before the booking expires.")
         return
-    _send(booking, doc_id, payment_text(booking, link), payment={"url": link["url"], "expiresAt": link["expiresAt"]})
+    _send(booking, doc_id, payment_text(booking, link), payment={"url": link["url"], "expiresAt": link["expiresAt"]},
+          paymentBookingId=booking["bookingId"])
 
 
 def paid(booking: dict) -> None:
+    chat.set_payment_status(booking["bookingId"], "paid")
     _send(booking, f"{booking['bookingId']}-paid",
           f"Payment received, thank you. Your booking {booking['reference']} is now confirmed: "
           f"{booking['roomName'] or booking['roomType']}, {booking['checkIn']} to {booking['checkOut']}.")
 
 
 def cancelled(booking: dict, reason: str = "payment_not_received") -> None:
+    chat.set_payment_status(booking["bookingId"], "closed")
     why = ("as you asked. Nothing was charged" if reason == "guest_request"
            else "because the payment was not received in time")
     _send(booking, f"{booking['bookingId']}-cancelled",

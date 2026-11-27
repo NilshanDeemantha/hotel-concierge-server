@@ -111,6 +111,17 @@ def recent_messages(conversation_id: str, limit: int = HISTORY_LIMIT) -> list[di
     return [{"role": d.get("role"), "content": d.get("content"), "images": d.to_dict().get("images", [])} for d in reversed(found)]
 
 
+def set_payment_status(booking_id: str, status: str) -> None:
+    """Marks every payment-link message of a booking as "paid" or "closed", so the chat (the guest's and the admin's)
+    shows Payment done or Link expired instead of a link that no longer works. Never raises: the payment itself is already settled."""
+    try:
+        db = firestore.client()
+        for d in db.collection("messages").where(filter=FieldFilter("paymentBookingId", "==", booking_id)).stream():
+            d.reference.update({"payment.status": status})
+    except Exception:
+        print(f"could not mark the payment messages of booking {booking_id} as {status}")
+
+
 def save_notice(conversation_id: str, uid: str, doc_id: str, text: str, **extra) -> None:
     """Saves a message from the server (a payment link, a receipt) in a conversation. Raises AlreadyExists if repeated."""
     db = firestore.client()
