@@ -51,7 +51,7 @@ def world():
     nights["05"] = {"status": "blocked", "note": "Repairs"}  # removed by staff, no booking
     store.put("availability/r1_2026-12", {"roomId": "r1", "month": "2026-12", "days": nights})
     sent = MagicMock()
-    with patch.object(state.firestore, "transactional", retrying), patch.object(notices.chat, "save_notice", sent), \
+    with patch.object(state.firestore, "transactional", retrying), patch.object(notices.chat, "save_notice", sent), patch.object(notices.chat, "set_payment_status"), \
          patch.object(checkout.auth, "get_user", return_value=MagicMock(email="amara@example.com")):
         yield store, Db(store), sent
 
@@ -282,7 +282,7 @@ def test_the_payment_message_gives_the_amount_the_expiry_and_the_consequence(wor
     assert args[:3] == ("c1", "u1", "m1-payment-TB-AAAAAA")
     for part in ("TB-AAAAAA", "LKR 96,000", "one-time", "expires at", "Sri Lanka time", "cancelled automatically", "released"):
         assert part in args[3]
-    assert kwargs == {"payment": {"url": "https://checkout.stripe.com/c/pay/x", "expiresAt": LATER.isoformat()}}
+    assert kwargs == {"payment": {"url": "https://checkout.stripe.com/c/pay/x", "expiresAt": LATER.isoformat()}, "paymentBookingId": "b1"}
     assert "https://" not in args[3]  # the link is the button, not text the model or a guest could change
 
 
@@ -442,3 +442,40 @@ def test_cancel_booking_needs_the_guests_yes_and_touches_nothing_without_it():
 def test_xenia_always_has_the_refund_policy_in_her_instructions():
     from messages import reply
     assert policy.POLICY in reply.SYSTEM_PROMPT  # the model skipped the tool once and made up terms
+
+
+# ---- payment messages show Payment done / Link expired ----
+
+def test_the_payment_message_is_marked_paid_when_paid_and_closed_when_cancelled_unpaid(world):
+    store, db, sent = world
+    with patch.object(checkout, "link_for", return_value={"url": "https://checkout.stripe.com/c/pay/x", "expiresAt": LATER.isoformat()}):
+        notices.send_payment_link(db, {**booking(), "bookingId": "b1"}, "m1-payment-TB-AAAAAA")
+    assert sent.call_args.kwargs["paymentBookingId"] == "b1"  # how the message is found again
+    state.mark_paid(db, session())
+    notices.chat.set_payment_status.assert_called_once_with("b1", "paid")
+
+    notices.chat.set_payment_status.reset_mock()
+    store.put("bookings/b1", booking())
+    state.cancel_unpaid(db, "b1", "payment_not_received")
+    notices.chat.set_payment_status.assert_called_once_with("b1", "closed")
+
+
+def test_a_guest_cancelling_a_paid_booking_keeps_its_payment_message_as_paid(world):
+    store, db, _ = world
+    found = paid_booking(store)
+    with patch.object(refunds.bk, "today", return_value=date(2026, 11, 21)), \
+         patch.object(refunds.stripe.Refund, "create", return_value=MagicMock(id="re_1")):
+        notices.guest_cancelled(found, refunds.cancel(db, found))
+    notices.chat.set_payment_status.assert_not_called()
+
+
+def test_set_payment_status_updates_every_payment_message_of_the_booking_and_never_raises():
+    from messages import chat
+    doc = MagicMock()
+    client = MagicMock()
+    client.collection().where().stream.return_value = [doc]
+    with patch.object(chat.firestore, "client", return_value=client):
+        chat.set_payment_status("b1", "paid")
+    doc.reference.update.assert_called_once_with({"payment.status": "paid"})
+    with patch.object(chat.firestore, "client", side_effect=RuntimeError("down")):
+        chat.set_payment_status("b1", "paid")  # must not raise
