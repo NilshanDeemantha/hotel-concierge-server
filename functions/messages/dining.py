@@ -14,6 +14,7 @@ MEALS = ("breakfast", "lunch", "dinner")
 COURSES = {"starter": "starter", "main": "main course", "side": "side", "dessert": "dessert", "drink": "drink"}
 MAX_ITEMS = 40  # dishes a request may mention before we stop reading it
 MAX_MENU = 300  # dishes read from the menu
+MAX_NOTE_CHARS = 120  # a guest's special request for one dish (for example "less sugar")
 
 
 class DiningError(Exception):
@@ -34,6 +35,11 @@ def _key(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", plain.lower()).split())
 
 
+def _note(text) -> str:
+    """A special request as saved: one line of plain text, cut to MAX_NOTE_CHARS. It is only ever shown to staff."""
+    return " ".join("".join(c for c in str(text or "") if c.isprintable() or c.isspace()).split())[:MAX_NOTE_CHARS]
+
+
 def _find(want: str, pool: list) -> tuple:
     """(the dish as (id, item) or None, names to ask about). Exact first, ignoring case and punctuation; then the one
     dish the words are clearly a typo of. Two dishes that are both close are not guessed between."""
@@ -51,19 +57,24 @@ def _find(want: str, pool: list) -> tuple:
     return (close[0][1], close[0][2]), []
 
 
-def validate_order(db, meal: str, dishes: list) -> dict:
-    """The order if it follows the rules: {"meal", "items": [{id, name, course, priceLKR}], "totalLKR"}.
-    `dishes` are dish names (or ids) as the guest and the menu give them. Raises DiningError."""
+def validate_order(db, meal: str, dishes: list, special_requests: list | None = None) -> dict:
+    """The order if it follows the rules: {"meal", "items": [{id, name, course, priceLKR, specialRequest}], "totalLKR"}.
+    `dishes` are dish names (or ids) as the guest and the menu give them. `special_requests`, if given, has one entry per
+    dish in the same order ("" for a dish with none): what the guest asked for that dish, like "less sugar". Raises DiningError."""
     meal = _key(meal or "")
     if meal not in MEALS:
         raise DiningError("Please tell me which meal this is for: breakfast, lunch or dinner.")
-    asked = [str(d).strip() for d in (dishes or [])[:MAX_ITEMS] if isinstance(d, (str, int)) and str(d).strip()]
+    dishes, notes = list(dishes or []), list(special_requests or [])
+    if notes and len(notes) != len(dishes):
+        raise DiningError("Please give one special request for each dish, in the same order as the dishes, and leave it empty for a dish with none.")
+    asked = [(str(d).strip(), _note(notes[i]) if notes else "") for i, d in enumerate(dishes[:MAX_ITEMS])
+             if isinstance(d, (str, int)) and str(d).strip()]
     if not asked:
         raise DiningError("Tell me which dishes you would like.")
     menu = [(d.id, d.to_dict() or {}) for d in db.collection("menuItems").limit(MAX_MENU).stream()]
 
     chosen: list[dict] = []
-    for want in asked:
+    for want, note in asked:
         here, unsure = _find(want, [(i, m) for i, m in menu if m.get("meal") == meal])
         if unsure:
             raise DiningError(f"I am not sure which dish you mean by \"{want}\": {unsure[0]} or {unsure[1]}?")
@@ -75,9 +86,11 @@ def validate_order(db, meal: str, dishes: list) -> dict:
         dish_id, dish = here
         if dish.get("available") is not True:
             raise DiningError(f"{dish['name']} is not available right now. Would you like to choose something else?")
-        if any(c["id"] == dish_id for c in chosen):
-            continue  # the same dish named twice is still one dish
-        chosen.append({"id": dish_id, "name": dish["name"], "course": dish.get("course", ""), "priceLKR": dish["priceLKR"]})
+        again = next((c for c in chosen if c["id"] == dish_id), None)
+        if again:
+            again["specialRequest"] = again["specialRequest"] or note  # the same dish named twice is still one dish
+            continue
+        chosen.append({"id": dish_id, "name": dish["name"], "course": dish.get("course", ""), "priceLKR": dish["priceLKR"], "specialRequest": note})
 
     for course, label in COURSES.items():
         same = [c["name"] for c in chosen if c["course"] == course]

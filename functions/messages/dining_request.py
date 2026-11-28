@@ -1,6 +1,6 @@
 """A guest's dining request: the order, where it goes (their room or the restaurant) and what it costs, saved for staff.
 
-The dishes are checked by dining.validate_order (one meal, one dish per course, only dishes on the menu). A request is
+The dishes are checked by dining.validate_order (one meal, one dish per course, only dishes on the menu); a guest may add a short special request to a dish. A request is
 accepted only from a guest whose confirmed booking covers the present moment (from check-in time on the first day to
 check-out time on the last, Sri Lanka time), so the room is the one on that booking, never a room the guest names.
 A request is saved once per guest message (the id is fixed), so a repeated task cannot order twice.
@@ -46,13 +46,14 @@ def request_id(message_id: str) -> str:
     return f"{message_id}-dining"
 
 
-def create(db, *, uid: str, conversation_id: str, message_id: str, meal: str, dishes: list, service: str) -> dict:
+def create(db, *, uid: str, conversation_id: str, message_id: str, meal: str, dishes: list, service: str,
+           special_requests: list | None = None) -> dict:
     """Saves the request after checking everything again (the guest's yes is not trusted to have been checked).
     Raises DiningError with words for the guest."""
     service = (service or "").strip().lower()
     if service not in SERVICES:
         raise DiningError("Please tell me whether the food should be brought to your room or whether you will come to the restaurant.")
-    order = dining.validate_order(db, meal, dishes)
+    order = dining.validate_order(db, meal, dishes, special_requests)
     stay = active_stay(db, uid, now())
     if not stay:
         raise DiningError("Dining requests are for guests during their stay, and I could not find a confirmed booking on your "
@@ -85,7 +86,10 @@ def create(db, *, uid: str, conversation_id: str, message_id: str, meal: str, di
 
 def request_text(r: dict) -> str:
     """The message the guest gets. Written here, not by the model, so the dishes and the total are exact."""
-    dishes = "; ".join(f"{i['name']} (LKR {i['priceLKR']:,})" for i in r["items"])
+    dishes = "; ".join(
+        f"{i['name']} (LKR {i['priceLKR']:,}" + (f", your request: {i['specialRequest']}" if i.get("specialRequest") else "") + ")"
+        for i in r["items"]
+    )
     where = f"will be brought to room {r['roomNumber']}" if r["service"] == "room" else "will be served at the restaurant"
     return (f"Your dining request {r['reference']} is received: {dishes}. Total LKR {r['totalLKR']:,}. It {where}. "
             "If you need to change anything, please contact reception.")

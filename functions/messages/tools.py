@@ -165,7 +165,7 @@ def make_tools(
 
         return guarded(run)
 
-    def check_dining_order(meal: str, dishes: list[str]) -> dict:
+    def check_dining_order(meal: str, dishes: list[str], special_requests: list[str] | None = None) -> dict:
         """Checks a dining order against the menu and the guest's stay, without placing it. Call it as soon as the guest
         names dishes. The rules: one meal per order, only dishes on that meal's menu, and at most one dish per course
         (one starter, one main course, one side, one dessert, one drink). If it returns an error, tell the guest exactly
@@ -175,10 +175,12 @@ def make_tools(
         Args:
             meal: "breakfast", "lunch" or "dinner".
             dishes: the dish names as the guest gave them. Small typos and capital letters are forgiven; the result has the real names.
+            special_requests: what the guest asked for each dish, like "less sugar" or "low spicy", one entry per dish in the same
+                order as dishes, with an empty text for a dish with none. Leave empty if there are none.
         """
         def run():
             db = firestore.client()
-            order = dining.validate_order(db, meal, dishes)
+            order = dining.validate_order(db, meal, dishes, special_requests)
             stay = dining_request.active_stay(db, uid, dining_request.now())
             if not stay:
                 raise dining.DiningError("Dining requests are for guests during their stay, and I could not find a confirmed "
@@ -187,7 +189,8 @@ def make_tools(
 
         return guarded(run)
 
-    def place_dining_request(meal: str, dishes: list[str], service: str, guest_has_confirmed: bool) -> dict:
+    def place_dining_request(meal: str, dishes: list[str], service: str, guest_has_confirmed: bool,
+                             special_requests: list[str] | None = None) -> dict:
         """Places the guest's dining request for the kitchen. Call it only after check_dining_order was fine and the
         guest has clearly said yes to the exact dishes and total AND has said whether the food should be brought to
         their room or they will come to the restaurant. A message with the details is sent automatically.
@@ -196,6 +199,7 @@ def make_tools(
             meal: "breakfast", "lunch" or "dinner".
             dishes: the dish names as the guest gave them (the real names are matched for you).
             service: "room" to have the food brought to the guest's room, or "restaurant" to eat at the restaurant.
+            special_requests: the same special requests as given to check_dining_order, one per dish in the same order.
             guest_has_confirmed: true only if the guest clearly confirmed these dishes, the total and the service.
         """
         print(f"xenia place_dining_request: {meal!r} {dishes!r} {service!r} confirmed={guest_has_confirmed!r}")
@@ -204,7 +208,7 @@ def make_tools(
 
         def run():
             made = dining_request.create(firestore.client(), uid=uid, conversation_id=conversation_id, message_id=message_id,
-                                         meal=meal, dishes=dishes, service=service)
+                                         meal=meal, dishes=dishes, service=service, special_requests=special_requests)
             if not any(r["reference"] == made["reference"] for r in dining_made):
                 dining_made.append(made)
             return {"requested": True, "reference": made["reference"], "totalLKR": made["totalLKR"], "service": made["service"],

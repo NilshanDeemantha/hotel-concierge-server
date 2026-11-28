@@ -141,3 +141,31 @@ def test_answer_sends_the_request_message_after_the_reply(firestore, reply_mod, 
     reply_mod.generate_reply.side_effect = lambda m, mid, booked, images, resend=None, cancelled=None, dining_made=None: (dining_made.append(request), "Placing it.")[1]
     task.answer.__wrapped__(MagicMock(data={"messageId": "m1"}))
     dr_mod.send.assert_called_once_with(message, "m1", request)
+
+
+def test_special_requests_are_saved_with_their_dish_and_shown_in_the_guests_message(store):
+    r = make(store, special_requests=["less spicy", "", "no ice"])
+    saved = store.docs["diningRequests/m1-dining"]["items"]
+    assert {i["name"]: i["specialRequest"] for i in saved} == {"Crab cakes": "less spicy", "Beef steak": "", "Soft drinks": "no ice"}
+    text = dr.request_text(r)
+    assert "Crab cakes (LKR 2,900, your request: less spicy)" in text and "Beef steak (LKR 4,800)" in text and "no ice" in text
+
+
+def test_a_request_without_special_requests_has_empty_ones_and_a_bad_list_saves_nothing(store):
+    make(store)
+    assert all(i["specialRequest"] == "" for i in store.docs["diningRequests/m1-dining"]["items"])
+    assert "one special request for each dish" in refused(store, message_id="m2", special_requests=["only one"])
+    assert "diningRequests/m2-dining" not in store.docs
+
+
+def test_the_tools_pass_special_requests_through_and_keep_them_out_of_the_prompt_rules(store):
+    made: list[dict] = []
+    with patch.object(tools.firestore, "client", return_value=Db(store)), patch.object(dr, "now", return_value=DURING):
+        t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", [], [], dining_made=made)}
+        checked = t["check_dining_order"]("dinner", ORDER["dishes"], ["less spicy", "", "no ice"])
+        assert [i["specialRequest"] for i in checked["items"]] == ["less spicy", "", "no ice"]
+        assert "one special request for each dish" in t["check_dining_order"]("dinner", ORDER["dishes"], ["x"])["error"]
+        t["place_dining_request"]("dinner", ORDER["dishes"], "room", True, ["less spicy", "", "no ice"])
+    assert made[0]["items"][0]["specialRequest"] == "less spicy"
+    from messages import reply
+    assert "special_requests" in reply.SYSTEM_PROMPT and "never promise it can be done" in reply.SYSTEM_PROMPT

@@ -49,7 +49,8 @@ the model: `list_menu_dishes` (names and prices), `check_dining_order` (one meal
 course, and the guest must be inside their confirmed booking time: check-in time on the first day to check-out time on the last),
 then the guest chooses **room** or **restaurant** and confirms, and `place_dining_request` saves the request in `diningRequests`.
 A request holds the guest (`uid`, name), the booking and room (`roomId`, `roomNumber`; always the room on the guest's own booking),
-the meal, `service` (room or restaurant), the dishes with their prices, `totalLKR` and `status: requested`. One request per guest
+the meal, `service` (room or restaurant), the dishes with their prices and each dish's `specialRequest` (what the guest asked for
+that dish, like "less sugar"; one clean line of at most 120 characters, empty if none), `totalLKR` and `status: requested`. One request per guest
 message, at most three waiting per guest. Admins can read the collection; staff screens and status changes come later.
 
 ## Layout
