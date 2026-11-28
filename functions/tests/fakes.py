@@ -1,7 +1,7 @@
 """A small in-memory Firestore for the tests. Transactions behave like Firestore's: a commit is refused (Aborted) if a
 document the transaction read has changed since, and `retrying` runs the function again, as firestore.transactional does."""
 
-from google.api_core.exceptions import Aborted
+from google.api_core.exceptions import Aborted, AlreadyExists
 from firebase_admin import firestore
 
 
@@ -33,6 +33,11 @@ class Ref:
 
     def set(self, data, merge=False):
         self.store.put(self.path, {**(self.store.docs.get(self.path) or {}), **data} if merge else data)
+
+    def create(self, data):
+        if self.path in self.store.docs:
+            raise AlreadyExists("exists")
+        self.store.put(self.path, data)
 
     def update(self, data):
         self.store.put(self.path, {**(self.store.docs[self.path]), **data})

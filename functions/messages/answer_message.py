@@ -5,7 +5,7 @@ import random
 from firebase_admin import firestore, functions
 from firebase_functions import options, tasks_fn
 
-from messages import booking, chat, menu, reply
+from messages import booking, chat, dining_request, menu, reply
 from payments import config, notices
 
 REGION = "asia-south1"  # keep in step with main.py
@@ -41,9 +41,10 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     resend: list[dict] = []  # bookings whose payment link the guest asked for again
     cancelled: list[tuple] = []  # (booking, refund quote) of cancellations the guest asked for
     menus: list[str] = []  # set when the guest asked for the menu: the meal they asked about, or ""
+    dining_made: list[dict] = []  # dining requests the guest placed: confirmed by us after the answer
     booked: list[dict] = []  # filled by the booking tool, so a booking is confirmed even if the model call then fails
     try:
-        text = reply.generate_reply(message, message_id, booked, images, resend, cancelled, menus)
+        text = reply.generate_reply(message, message_id, booked, images, resend, cancelled, menus, dining_made)
     except Exception:
         print("answer_message: the model call failed")
         import traceback
@@ -63,6 +64,8 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     # The menu PDF with its preparation times, written by us (not the model) so the times are exact.
     for meal in menus:
         menu.send(message, message_id, meal)
+    for r in dining_made:
+        dining_request.send(message, message_id, r)
     # What happened to the money after a cancellation, written by us so the amounts are exact.
     for b, q in cancelled:
         notices.guest_cancelled(b, q)

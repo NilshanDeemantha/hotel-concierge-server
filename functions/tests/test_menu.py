@@ -45,7 +45,7 @@ def test_send_menu_tool_records_the_meal_once_and_ignores_unknown_meals():
 
 
 def test_the_prompt_tells_xenia_to_use_the_tool_and_not_to_take_orders():
-    assert "send_menu" in reply.SYSTEM_PROMPT and "cannot take food orders" in reply.SYSTEM_PROMPT
+    assert "send_menu" in reply.SYSTEM_PROMPT and "place_dining_request" in reply.SYSTEM_PROMPT
     assert "à la carte" in reply.SYSTEM_PROMPT and "no buffet" in reply.SYSTEM_PROMPT
     contact = hotel.HOTEL["contact_and_times"]
     assert contact["phone"] in reply.SYSTEM_PROMPT and contact["email"] in reply.SYSTEM_PROMPT and "never make one up" in reply.SYSTEM_PROMPT
@@ -64,7 +64,7 @@ def test_answer_sends_the_menu_after_the_reply(firestore, reply_mod, chat_mod, m
     db.collection().document().get().to_dict.return_value = message
     db.collection().document().get().exists = False
     reply_mod.FALLBACK, reply_mod.BOOKED_FALLBACK = "sorry", "booked"
-    reply_mod.generate_reply.side_effect = lambda m, mid, booked, images, resend=None, cancelled=None, menus=None: (menus.append("lunch"), "Sending it now.")[1]
+    reply_mod.generate_reply.side_effect = lambda m, mid, booked, images, resend=None, cancelled=None, menus=None, dining_made=None: (menus.append("lunch"), "Sending it now.")[1]
     task.answer.__wrapped__(MagicMock(data={"messageId": "m1"}))
     chat_mod.save_reply.assert_called_once_with(message, "m1", "Sending it now.", images=[])
     menu_mod.send.assert_called_once_with(message, "m1", "lunch")

@@ -166,7 +166,7 @@ def test_tools_never_raise_and_booking_needs_the_guests_yes(world):
     booked = []
     with patch.object(tools.firestore, "client", return_value=db):
         t = {f.__name__: f for f in tools.make_tools("u1", "c1", "m1", booked, [])}
-        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu"}
+        assert set(t) == {"get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu", "list_menu_dishes", "check_dining_order", "place_dining_request"}
         assert "error" in t["create_booking"]("r1", "2026-12-20", "2026-12-23", False) and not booked
         assert "error" in t["check_availability"]("2026-12-23", "2026-12-20")
         ok = t["create_booking"]("202", "2026-12-20", "2026-12-23", True)  # by room number, as Xenia has it
