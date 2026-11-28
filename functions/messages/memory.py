@@ -15,7 +15,9 @@ from messages.dining_request import now
 MAX_NOTES = 10
 MAX_NOTE_CHARS = 120
 KEEP = timedelta(days=365)
-SECRET = re.compile(r"password|passcode|\bpin\b|cvv|cvc|card number", re.I)
+SECRET = re.compile(r"password|passcode|\bpin\b|cvv|cvc|card number|passport", re.I)
+# Bookings, money and offers are facts the system holds; a guest's claim about them must never become a note Xenia believes.
+NOT_A_NOTE = re.compile(r"\b(book(ed|ing|ings)?|reserv\w*|paid|pay(ment)?|refund\w*|discount\w*|price\w*|free of charge|complimentary|upgrade\w*|room \d+)\b", re.I)
 
 
 def _fresh(notes: list[dict], at: datetime) -> list[dict]:
@@ -35,6 +37,8 @@ def remember(db, uid: str, note: str, at: datetime | None = None) -> dict:
         return {"saved": False, "reason": "empty"}
     if SECRET.search(text) or len(re.sub(r"\D", "", text)) >= 8:
         return {"saved": False, "reason": "looks like a secret or a card or phone number; never save those"}
+    if NOT_A_NOTE.search(text):
+        return {"saved": False, "reason": "bookings, payments, prices and discounts are not notes; the booking system holds them"}
     notes = _read(db, uid, at)
     if any(n["text"].lower() == text.lower() for n in notes):
         return {"saved": True, "duplicate": True}

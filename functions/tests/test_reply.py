@@ -162,3 +162,8 @@ def test_photos_already_sent_earlier_in_the_chat_are_passed_to_the_tools(client,
 
 def test_the_prompt_makes_xenia_offer_a_booking_after_answering_about_a_room():
     assert "would like to book" in reply.SYSTEM_PROMPT and "do not ask again" in reply.SYSTEM_PROMPT
+
+
+def test_the_prompt_carries_the_check_times_and_travel_times_so_they_are_never_guessed():
+    for fact in ("check-in from 2:00 pm", "check-out until 11:00 am", "colombo airport about 2 hours by the southern expressway", "galle fort 10 minutes by tuk-tuk"):
+        assert fact in reply.SYSTEM_PROMPT.lower()

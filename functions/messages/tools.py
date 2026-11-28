@@ -242,7 +242,13 @@ def make_tools(
         Args:
             note: One short sentence, for example "Vegetarian" or "Arrives around 11pm on 20 Dec".
         """
-        return guarded(lambda: memory.remember(firestore.client(), uid, note))
+        def run():
+            result = memory.remember(firestore.client(), uid, note)
+            if not result["saved"]:  # so Xenia does not tell the guest she noted something she did not
+                return {**result, "note": "Not saved. Do not say you noted or saved it. If it was a booking, payment, price or discount, say you cannot see or apply it."}
+            return result
+
+        return guarded(run)
 
     return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
             check_cancellation, cancel_booking, send_menu, list_menu_dishes, check_dining_order, place_dining_request,

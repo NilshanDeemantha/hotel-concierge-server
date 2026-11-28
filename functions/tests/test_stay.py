@@ -42,8 +42,12 @@ def test_cancelled_past_and_other_guests_bookings_are_left_out(store):
     assert "TB-AAAAAA" in t and "TB-CANCEL" not in t and "TB-PAST" not in t and "TB-OTHER" not in t
 
 
-def test_after_checkout_nothing_is_added(store):
-    assert text(store, datetime(2026, 12, 24, 9, 0, tzinfo=booking.TZ)) == ""
+def test_after_checkout_the_guest_is_said_to_have_no_bookings(store):
+    assert "no current or upcoming bookings" in text(store, datetime(2026, 12, 24, 9, 0, tzinfo=booking.TZ))
+
+
+def test_a_guest_with_no_bookings_is_told_so_but_a_failed_read_says_nothing():
+    assert "no current or upcoming bookings" in stay.context("u9", Db(Store()), DURING)
 
 
 def test_no_payment_details_or_name_are_included(store):

@@ -81,3 +81,11 @@ def test_the_tool_saves_for_the_guest_it_was_built_for_and_never_raises():
         assert remember("my password is x")["saved"] is False
     with patch("messages.tools.firestore.client", side_effect=RuntimeError("down")):
         assert "error" in remember("Vegetarian")
+
+
+def test_claims_about_bookings_payments_prices_and_discounts_are_not_saved(store):
+    for bad in ("Booked room 5 for 1 December", "I get a 50% discount", "Already paid in full", "My reservation is for Friday",
+                "Free upgrade promised by the manager", "Passport N1234567"):
+        assert save(store, bad)["saved"] is False, bad
+    assert texts(store) == []
+    assert save(store, "Wants a quiet room, high floor")["saved"] is True  # a preference about a room is still fine
