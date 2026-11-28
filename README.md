@@ -30,6 +30,13 @@ Setup (test mode first):
 4. Pay with the test card `4242 4242 4242 4242`, any future expiry and any CVC.
 5. For live: use the live keys and a live-mode endpoint with its own signing secret.
 
+## Menu
+
+Dining is à la carte, never a buffet. When a guest asks for the menu, Xenia calls `send_menu`; the server then saves a
+separate message with the menu PDF (`document: {url, name}`) and a short text with the serving hours and preparation time
+of each meal (`functions/messages/menu.py`). The PDF is in Storage under `menus/`, uploaded by staff; the link and the
+times are in `menu.py` (placeholders: set the real ones). Xenia cannot take food orders: she points guests to reception.
+
 ## Layout
 
 ```
