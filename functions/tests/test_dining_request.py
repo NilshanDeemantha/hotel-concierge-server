@@ -169,3 +169,4 @@ def test_the_tools_pass_special_requests_through_and_keep_them_out_of_the_prompt
     assert made[0]["items"][0]["specialRequest"] == "less spicy"
     from messages import reply
     assert "special_requests" in reply.SYSTEM_PROMPT and "never promise it can be done" in reply.SYSTEM_PROMPT
+    assert "Never say a dish is not on the menu" in reply.SYSTEM_PROMPT and "even if the names look wrong" in reply.SYSTEM_PROMPT
