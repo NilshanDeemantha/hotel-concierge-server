@@ -66,6 +66,10 @@ service cloud.firestore {
     match /payments/{id} {
       allow read: if isAdmin();
     }
+    // The dishes of the à la carte menu, written by scripts/seed_menu.py (and later by staff through the server); admins may read.
+    match /menuItems/{id} {
+      allow read: if isAdmin();
+    }
     match /availability/{id} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && validAvailability(id, request.resource.data);
