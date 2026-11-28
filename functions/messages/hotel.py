@@ -19,7 +19,7 @@ HOTEL = {
         ],
     },
     "dining_and_activities": {
-        "dining": "Breakfast on the terrace comes with every room. Lunch and dinner are served by the sea.",
+        "dining": "Dining is à la carte: guests order dishes from the menu. There is no buffet. Breakfast on the terrace comes with every room. Lunch and dinner are served by the sea. The à la carte menu is available as a PDF: use send_menu.",
         "spa": "Massages and treatments in a quiet garden room.",
         "pool": "A pool among the palms with loungers and shade, a few steps from the sand.",
         "boat_rides": "Morning and sunset rides along the coast, leaving from the bay in front of the hotel.",
