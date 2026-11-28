@@ -8,21 +8,23 @@ import traceback
 
 from firebase_admin import firestore
 
-from messages import booking, dining, dining_request, hotel
+from messages import booking, dining, dining_request, hotel, menu
 from payments import config as pay, refunds
 
 
 def make_tools(
     uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str],
     already_sent: frozenset = frozenset(), resend: list[dict] | None = None, cancelled: list[tuple] | None = None,
-    dining_made: list[dict] | None = None,
+    menus: list[str] | None = None, dining_made: list[dict] | None = None,
 ) -> list:
     """The tool functions for one guest message. Bookings that succeed are appended to `booked`, and photos to send
     with the answer to `images` (the model never writes image links itself). `already_sent` are the photos earlier
     messages of this conversation carried, so asking for more never repeats one. Bookings whose payment link the guest
-    asked for again are appended to `resend`, and bookings the guest cancelled to `cancelled` as (booking, refund quote)."""
+    asked for again are appended to `resend`, bookings the guest cancelled to `cancelled` as (booking, refund quote), and a
+    menu the guest asked for to `menus` as the meal they asked about ("" for all)."""
     resend = resend if resend is not None else []
     cancelled = cancelled if cancelled is not None else []
+    menus = menus if menus is not None else []
     dining_made = dining_made if dining_made is not None else []
 
     def guarded(fn):
@@ -216,5 +218,20 @@ def make_tools(
 
         return guarded(run)
 
+    def send_menu(meal: str = "") -> dict:
+        """Sends the guest the à la carte menu as a PDF in the chat, with a short message that gives the preparation
+        time and serving hours. Call it whenever the guest asks for the menu, the food or drink list, dishes or prices of
+        food, or what they can eat. The PDF and that message are sent automatically: never write links or times yourself.
+
+        Args:
+            meal: "breakfast", "lunch" or "dinner" if the guest asked about one meal; leave empty for the whole menu.
+        """
+        if meal.strip().lower() not in ("", *menu.MEALS):
+            meal = ""
+        if not menus:
+            menus.append(meal.strip().lower())
+        return {"sent": True, "note": "The menu PDF is sent as a separate message with the preparation times. Say in one "
+                                      "short sentence that you are sending it."}
+
     return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
-            check_cancellation, cancel_booking, list_menu_dishes, check_dining_order, place_dining_request]
+            check_cancellation, cancel_booking, send_menu, list_menu_dishes, check_dining_order, place_dining_request]

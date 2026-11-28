@@ -138,7 +138,7 @@ def test_answer_sends_the_request_message_after_the_reply(firestore, reply_mod, 
     db.collection().document().get().exists = False
     reply_mod.FALLBACK, reply_mod.BOOKED_FALLBACK = "sorry", "booked"
     request = {"reference": "DR-1"}
-    reply_mod.generate_reply.side_effect = lambda m, mid, booked, images, resend=None, cancelled=None, dining_made=None: (dining_made.append(request), "Placing it.")[1]
+    reply_mod.generate_reply.side_effect = lambda m, mid, booked, images, resend=None, cancelled=None, menus=None, dining_made=None: (dining_made.append(request), "Placing it.")[1]
     task.answer.__wrapped__(MagicMock(data={"messageId": "m1"}))
     dr_mod.send.assert_called_once_with(message, "m1", request)
 

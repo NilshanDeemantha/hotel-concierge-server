@@ -86,6 +86,13 @@ scripts/deploy.sh       production release: rules, then functions
 scripts/make_admin.py   grants or revokes the admin claim for an account
 ```
 
+## Menu
+
+Dining is à la carte, never a buffet. When a guest asks for the menu, Xenia calls `send_menu`; the server then saves a
+separate message with the menu PDF (`document: {url, name}`) and a short text with the serving hours and preparation time
+of each meal (`functions/messages/menu.py`). The PDF is in Storage under `menus/`, uploaded by staff; the link and the
+times are in `menu.py` (placeholders: set the real ones). Xenia cannot take food orders: she points guests to reception.
+
 ## Endpoints
 
 Base URL: `https://asia-south1-thambili-bay-concierge.cloudfunctions.net`
