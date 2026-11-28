@@ -5,6 +5,10 @@ and there is at most one dish of each course (one starter, one main course, one 
 Dishes are in the `menuItems` collection (scripts/seed_menu.py). Everything raised here is words for the guest.
 """
 
+import difflib
+import re
+import unicodedata
+
 MEALS = ("breakfast", "lunch", "dinner")
 # Course -> how to say it to the guest. The order is the order of a meal. A guest gets one dish of each.
 COURSES = {"starter": "starter", "main": "main course", "side": "side", "dessert": "dessert", "drink": "drink"}
@@ -20,8 +24,31 @@ class DiningError(Exception):
         self.message = message
 
 
+FUZZY_MIN = 0.8  # how alike two names must be (0 to 1) for a typo to be forgiven
+FUZZY_GAP = 0.05  # a close match counts only if the next best is clearly worse: otherwise the guest is asked
+
+
 def _key(text: str) -> str:
-    return " ".join(str(text).lower().split())
+    """A name as compared: lower case, no accents, no punctuation, single spaces ("Crème brûlée" -> "creme brulee")."""
+    plain = "".join(c for c in unicodedata.normalize("NFKD", str(text)) if not unicodedata.combining(c))
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", plain.lower()).split())
+
+
+def _find(want: str, pool: list) -> tuple:
+    """(the dish as (id, item) or None, names to ask about). Exact first, ignoring case and punctuation; then the one
+    dish the words are clearly a typo of. Two dishes that are both close are not guessed between."""
+    key = _key(want)
+    for i, m in pool:
+        if want == i or _key(m.get("name", "")) == key:
+            return (i, m), []
+    scored = sorted(((difflib.SequenceMatcher(None, key, _key(m.get("name", ""))).ratio(), i, m) for i, m in pool),
+                    key=lambda s: -s[0])
+    close = [s for s in scored if s[0] >= FUZZY_MIN]
+    if not close:
+        return None, []
+    if len(close) > 1 and close[0][0] - close[1][0] < FUZZY_GAP:
+        return None, [close[0][2]["name"], close[1][2]["name"]]
+    return (close[0][1], close[0][2]), []
 
 
 def validate_order(db, meal: str, dishes: list) -> dict:
@@ -37,14 +64,15 @@ def validate_order(db, meal: str, dishes: list) -> dict:
 
     chosen: list[dict] = []
     for want in asked:
-        found = [(i, m) for i, m in menu if want == i or _key(m.get("name", "")) == _key(want)]
-        here = [(i, m) for i, m in found if m.get("meal") == meal]
-        if not here and found:
-            other = found[0][1]["meal"]
-            raise DiningError(f"{found[0][1]['name']} is on the {other} menu, not the {meal} menu. An order is for one meal only.")
+        here, unsure = _find(want, [(i, m) for i, m in menu if m.get("meal") == meal])
+        if unsure:
+            raise DiningError(f"I am not sure which dish you mean by \"{want}\": {unsure[0]} or {unsure[1]}?")
         if not here:
+            elsewhere, _ = _find(want, [(i, m) for i, m in menu if m.get("meal") != meal])
+            if elsewhere:
+                raise DiningError(f"{elsewhere[1]['name']} is on the {elsewhere[1]['meal']} menu, not the {meal} menu. An order is for one meal only.")
             raise DiningError(f"I could not find \"{want}\" on the {meal} menu. Please choose a dish from the menu.")
-        dish_id, dish = here[0]
+        dish_id, dish = here
         if dish.get("available") is not True:
             raise DiningError(f"{dish['name']} is not available right now. Would you like to choose something else?")
         if any(c["id"] == dish_id for c in chosen):

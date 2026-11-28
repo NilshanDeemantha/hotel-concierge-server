@@ -174,7 +174,7 @@ def make_tools(
 
         Args:
             meal: "breakfast", "lunch" or "dinner".
-            dishes: the exact dish names from the menu.
+            dishes: the dish names as the guest gave them. Small typos and capital letters are forgiven; the result has the real names.
         """
         def run():
             db = firestore.client()
@@ -194,7 +194,7 @@ def make_tools(
 
         Args:
             meal: "breakfast", "lunch" or "dinner".
-            dishes: the exact dish names from the menu.
+            dishes: the dish names as the guest gave them (the real names are matched for you).
             service: "room" to have the food brought to the guest's room, or "restaurant" to eat at the restaurant.
             guest_has_confirmed: true only if the guest clearly confirmed these dishes, the total and the service.
         """

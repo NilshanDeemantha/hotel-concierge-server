@@ -83,3 +83,32 @@ def test_a_request_cannot_name_more_dishes_than_there_are_courses_and_one_per_co
     five = ["Crab cakes", "Beef steak", "Chips or mashed potato", "Cheesecake", "Soft drinks"]
     assert len(validate_order(db, "dinner", five)["items"]) == len(dining.COURSES)
     assert "one main course" in refused(db, "dinner", five + ["Roast chicken"])
+
+
+@pytest.mark.parametrize("said, real", [
+    ("CRAB CAKES", "Crab cakes"), ("crab cake", "Crab cakes"), ("Crab cakess", "Crab cakes"), ("crabcakes", "Crab cakes"),
+    ("beef stake", "Beef steak"), ("soft drink", "Soft drinks"), ("Creme brulee", "Crème brûlée"), ("  cheese   cake ", "Cheesecake"),
+    ("Chiken in coconut gravy", "Chicken in coconut gravy"), ("jaffna crab cury", "Jaffna crab curry"),
+])
+def test_typos_capital_letters_accents_and_plurals_are_forgiven_and_the_real_name_is_used(db, said, real):
+    assert validate_order(db, "dinner", [said])["items"][0]["name"] == real
+
+
+def test_the_same_forgiveness_applies_to_dishes_of_other_menus_and_punctuation(db):
+    assert validate_order(db, "lunch", ["ploughmans platter"])["items"][0]["name"] == "Ploughman's platter"
+    assert validate_order(db, "breakfast", ["egg hopper"])["items"][0]["name"] == "Egg hoppers (2)"
+    assert "lunch menu, not the dinner menu" in refused(db, "dinner", ["fish cutlet"])   # a typo of a lunch dish is still a lunch dish
+
+
+def test_a_guess_is_never_made_between_two_close_dishes_or_for_something_else(db):
+    assert "not sure" in refused(db, "dinner", ["Crab"]) or "could not find" in refused(db, "dinner", ["Crab"])
+    for far in ("Beef Wellington", "pizza", "steak house special", "x"):
+        assert "could not find" in refused(db, "dinner", [far])
+    two = validate_order(db, "dinner", ["Beef steak", "Soft drink"])   # a typo never lets two dishes of a course through
+    assert [i["name"] for i in two["items"]] == ["Beef steak", "Soft drinks"]
+    assert "only one starter" in refused(db, "dinner", ["crab cake", "prawn coctail"])
+
+
+def test_a_dish_is_forgiven_only_within_the_meal_asked_when_both_menus_have_it(db):
+    assert validate_order(db, "dinner", ["fresh juise"])["items"][0]["id"] == "dinner-fresh-juice"
+    assert validate_order(db, "breakfast", ["fresh juise"])["items"][0]["id"] == "breakfast-fresh-juice"
