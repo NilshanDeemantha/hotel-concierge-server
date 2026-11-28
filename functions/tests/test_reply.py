@@ -15,11 +15,11 @@ MESSAGE = {"conversationId": "c1", "uid": "u1", "content": "hi"}
 @patch("messages.reply.chat.recent_messages", return_value=[])
 @patch("messages.reply.GEMINI_API_KEY")
 @patch("messages.reply.genai.Client")
-def test_generate_reply_gives_the_model_the_twelve_tools(client, key, history):
+def test_generate_reply_gives_the_model_the_thirteen_tools(client, key, history):
     client().models.generate_content.return_value = MagicMock(text=" Hello! ")
     assert reply.generate_reply(MESSAGE, "m1", [], []) == "Hello!"
     config = client().models.generate_content.call_args.kwargs["config"]
-    assert [f.__name__ for f in config.tools] == ["get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu", "list_menu_dishes", "check_dining_order", "place_dining_request"]
+    assert [f.__name__ for f in config.tools] == ["get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu", "list_menu_dishes", "check_dining_order", "place_dining_request", "remember_guest_note"]
     assert "Today is" in config.system_instruction
 
 
@@ -162,3 +162,8 @@ def test_photos_already_sent_earlier_in_the_chat_are_passed_to_the_tools(client,
 
 def test_the_prompt_makes_xenia_offer_a_booking_after_answering_about_a_room():
     assert "would like to book" in reply.SYSTEM_PROMPT and "do not ask again" in reply.SYSTEM_PROMPT
+
+
+def test_the_prompt_carries_the_check_times_and_travel_times_so_they_are_never_guessed():
+    for fact in ("check-in from 2:00 pm", "check-out until 11:00 am", "colombo airport about 2 hours by the southern expressway", "galle fort 10 minutes by tuk-tuk"):
+        assert fact in reply.SYSTEM_PROMPT.lower()

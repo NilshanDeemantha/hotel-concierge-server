@@ -74,6 +74,10 @@ service cloud.firestore {
     match /diningRequests/{id} {
       allow read: if isAdmin();
     }
+    // What a guest told Xenia (diet, arrival time...), written by the server; admins may read.
+    match /guestMemory/{uid} {
+      allow read: if isAdmin();
+    }
     match /availability/{id} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && validAvailability(id, request.resource.data);
