@@ -53,6 +53,14 @@ the meal, `service` (room or restaurant), the dishes with their prices and each 
 that dish, like "less sugar"; one clean line of at most 120 characters, empty if none), `totalLKR` and `status: requested`. One request per guest
 message, at most three waiting per guest. Admins can read the collection; staff screens and status changes come later.
 
+## Stay context (Xenia's memory)
+
+Only the last few chat messages go to the model, so it used to forget a room or dates mentioned earlier. `messages/stay.py`
+reads the guest's own bookings on every reply and adds one line per booking to the prompt: reference, room, dates, nights,
+total, check-in/out times and status (staying now, paid, waiting for payment). It covers confirmed and unpaid bookings that
+have not ended, up to three, soonest first; cancelled, expired and past ones are left out, so it is always current and
+nothing is copied or stored. No payment details or guest name are included. If the read fails Xenia answers without it.
+
 ## Layout
 
 ```

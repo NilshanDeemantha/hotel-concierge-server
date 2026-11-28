@@ -4,7 +4,7 @@ from firebase_functions.params import SecretParam
 from google import genai
 from google.genai import types
 
-from messages import booking, chat, hotel, tools
+from messages import booking, chat, hotel, stay, tools
 from payments import policy
 
 # Stored in Secret Manager: firebase functions:secrets:set GEMINI_API_KEY
@@ -99,7 +99,8 @@ def generate_reply(
         model=MODEL,
         contents=_history(rows),
         config=types.GenerateContentConfig(
-            system_instruction=f"{SYSTEM_PROMPT}\nToday is {today:%A} {today:%Y-%m-%d} (Sri Lanka time).",
+            system_instruction=f"{SYSTEM_PROMPT}\nToday is {today:%A} {today:%Y-%m-%d} (Sri Lanka time).\n"
+            + stay.context(message["uid"]),
             tools=tools.make_tools(message["uid"], message["conversationId"], message_id, booked, images, sent, resend, cancelled, menus, dining_made),
             max_output_tokens=400,
         ),
