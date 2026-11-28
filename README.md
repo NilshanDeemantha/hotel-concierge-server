@@ -30,6 +30,18 @@ Setup (test mode first):
 4. Pay with the test card `4242 4242 4242 4242`, any future expiry and any CVC.
 5. For live: use the live keys and a live-mode endpoint with its own signing secret.
 
+## Menu items
+
+The dishes of the à la carte menu live in the `menuItems` collection: one document per dish with its meal, category, course, name,
+description, price in LKR, labels (vegetarian, vegan, spicy, seafood, gluten-free, dairy-free, contains-nuts), `available`
+and `sortOrder`. Pictures are not stored. Load them once with `python scripts/seed_menu.py` (data in
+`scripts/menu_items.json`); a dish that is already there only gets fields it lacks. Admins can read the collection; only the server writes it.
+
+Dining requests are checked by `functions/messages/dining.py` (`validate_order`), never by the model: an order is for one meal
+(breakfast, lunch or dinner), every dish must be on that meal's menu and available, and there is at most one dish per course
+(starter, main course, side, dessert, drink). A dish of another meal is refused with the meal it belongs to. Breakfast has only
+mains and drinks, so a breakfast order is one dish and one drink.
+
 ## Layout
 
 ```

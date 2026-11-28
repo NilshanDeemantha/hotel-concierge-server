@@ -1,0 +1,930 @@
+[
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "String hoppers with dhal and sambol",
+  "description": "Steamed rice-flour noodles, yellow dhal curry and coconut sambol.",
+  "priceLKR": 1400,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 0
+ },
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "Egg hoppers (2)",
+  "description": "Crisp bowl-shaped hoppers with a soft egg, served with lunu miris.",
+  "priceLKR": 1200,
+  "labels": [
+   "vegetarian",
+   "spicy",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 1
+ },
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "Kiribath with lunu miris",
+  "description": "Coconut milk rice cut into diamonds, with a spicy onion relish.",
+  "priceLKR": 1100,
+  "labels": [
+   "vegan",
+   "spicy",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 2
+ },
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "Pol roti and chicken curry",
+  "description": "Coconut flatbreads with a mild home-style chicken curry.",
+  "priceLKR": 1600,
+  "labels": [],
+  "sortOrder": 3
+ },
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "Fish ambul thiyal with bread",
+  "description": "Sour-spiced tuna curry with fresh bread rolls.",
+  "priceLKR": 1700,
+  "labels": [
+   "spicy",
+   "seafood",
+   "dairy-free"
+  ],
+  "sortOrder": 4
+ },
+ {
+  "meal": "breakfast",
+  "category": "Sri Lankan breakfast",
+  "course": "main",
+  "name": "Vegetable roti (2)",
+  "description": "Warm flatbreads stuffed with spiced vegetables, with sambol.",
+  "priceLKR": 1000,
+  "labels": [
+   "vegan",
+   "dairy-free"
+  ],
+  "sortOrder": 5
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Full English",
+  "description": "Two eggs, bacon, sausage, grilled tomato, mushrooms, baked beans and toast.",
+  "priceLKR": 2800,
+  "labels": [],
+  "sortOrder": 6
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Eggs Benedict",
+  "description": "Poached eggs and ham on a toasted muffin with hollandaise.",
+  "priceLKR": 2300,
+  "labels": [],
+  "sortOrder": 7
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Eggs your way",
+  "description": "Two eggs fried, scrambled or poached, with toast and grilled tomato.",
+  "priceLKR": 1500,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 8
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Cheese and mushroom omelette",
+  "description": "Three-egg omelette with cheddar and sautéed mushrooms, with toast.",
+  "priceLKR": 1800,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 9
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Porridge with honey",
+  "description": "Warm oats with milk, honey, banana and toasted cashews.",
+  "priceLKR": 1200,
+  "labels": [
+   "vegetarian",
+   "contains-nuts"
+  ],
+  "sortOrder": 10
+ },
+ {
+  "meal": "breakfast",
+  "category": "English breakfast",
+  "course": "main",
+  "name": "Granola with yoghurt",
+  "description": "Crunchy granola, buffalo curd yoghurt and seasonal fruit.",
+  "priceLKR": 1300,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 11
+ },
+ {
+  "meal": "breakfast",
+  "category": "Bakery and sweet",
+  "course": "main",
+  "name": "Pancakes with treacle",
+  "description": "Fluffy pancakes with kithul treacle and fresh coconut.",
+  "priceLKR": 1400,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 12
+ },
+ {
+  "meal": "breakfast",
+  "category": "Bakery and sweet",
+  "course": "main",
+  "name": "French toast",
+  "description": "Thick-cut bread dipped in egg and cinnamon, with banana and maple syrup.",
+  "priceLKR": 1500,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 13
+ },
+ {
+  "meal": "breakfast",
+  "category": "Bakery and sweet",
+  "course": "main",
+  "name": "Butter croissant",
+  "description": "Warm croissant with butter and local jam.",
+  "priceLKR": 800,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 14
+ },
+ {
+  "meal": "breakfast",
+  "category": "Bakery and sweet",
+  "course": "main",
+  "name": "Toast and preserves",
+  "description": "Sourdough with butter, local jam and cashew butter.",
+  "priceLKR": 900,
+  "labels": [
+   "vegetarian",
+   "contains-nuts"
+  ],
+  "sortOrder": 15
+ },
+ {
+  "meal": "breakfast",
+  "category": "Bakery and sweet",
+  "course": "main",
+  "name": "Tropical fruit plate",
+  "description": "Papaya, pineapple, watermelon and banana with lime and honey.",
+  "priceLKR": 1300,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 16
+ },
+ {
+  "meal": "breakfast",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Ceylon tea",
+  "description": "Pot of black Ceylon tea, or with milk.",
+  "priceLKR": 600,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 17
+ },
+ {
+  "meal": "breakfast",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Coffee",
+  "description": "Filter coffee, americano, cappuccino or latte.",
+  "priceLKR": 700,
+  "labels": [
+   "vegetarian",
+   "gluten-free"
+  ],
+  "sortOrder": 18
+ },
+ {
+  "meal": "breakfast",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Fresh juice",
+  "description": "Orange, pineapple, watermelon or passion fruit.",
+  "priceLKR": 700,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 19
+ },
+ {
+  "meal": "breakfast",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "King coconut",
+  "description": "Fresh king coconut, served cold.",
+  "priceLKR": 500,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 20
+ },
+ {
+  "meal": "lunch",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Fish cutlets (4)",
+  "description": "Crisp tuna and potato croquettes with chilli sauce.",
+  "priceLKR": 1500,
+  "labels": [
+   "spicy",
+   "seafood"
+  ],
+  "sortOrder": 21
+ },
+ {
+  "meal": "lunch",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Prawn salad",
+  "description": "Grilled prawns, mango, cucumber and lime dressing.",
+  "priceLKR": 2400,
+  "labels": [
+   "seafood",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 22
+ },
+ {
+  "meal": "lunch",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Coconut and lentil soup",
+  "description": "Red lentils simmered with coconut milk and curry leaf.",
+  "priceLKR": 1300,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 23
+ },
+ {
+  "meal": "lunch",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Tomato basil soup",
+  "description": "Roasted tomato soup with basil and garlic bread.",
+  "priceLKR": 1300,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 24
+ },
+ {
+  "meal": "lunch",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Garlic bread with cheese",
+  "description": "Toasted baguette with garlic butter and melted mozzarella.",
+  "priceLKR": 1200,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 25
+ },
+ {
+  "meal": "lunch",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Rice and curry",
+  "description": "Rice with chicken, fish or vegetable curry, dhal, two sides, papadam and sambol.",
+  "priceLKR": 2800,
+  "labels": [
+   "spicy",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 26
+ },
+ {
+  "meal": "lunch",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Kottu roti",
+  "description": "Chopped flatbread stir-fried with vegetables, egg and your choice of chicken or vegetable.",
+  "priceLKR": 2400,
+  "labels": [
+   "spicy"
+  ],
+  "sortOrder": 27
+ },
+ {
+  "meal": "lunch",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Lamprais",
+  "description": "Rice baked in a banana leaf with meat curry, frikkadel, eggplant moju and sambol.",
+  "priceLKR": 3000,
+  "labels": [
+   "spicy"
+  ],
+  "sortOrder": 28
+ },
+ {
+  "meal": "lunch",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Grilled catch of the day",
+  "description": "Fresh local fish with garlic butter, salad and lemon.",
+  "priceLKR": 3600,
+  "labels": [
+   "seafood",
+   "gluten-free"
+  ],
+  "sortOrder": 29
+ },
+ {
+  "meal": "lunch",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Fried rice with prawns",
+  "description": "Wok-fried rice with prawns, egg, vegetables and soy.",
+  "priceLKR": 2900,
+  "labels": [
+   "seafood",
+   "dairy-free"
+  ],
+  "sortOrder": 30
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Club sandwich",
+  "description": "Chicken, egg, tomato and lettuce on toasted bread with fries.",
+  "priceLKR": 2200,
+  "labels": [],
+  "sortOrder": 31
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Fish and chips",
+  "description": "Beer-battered fish with chips, mushy peas and tartare sauce.",
+  "priceLKR": 3200,
+  "labels": [
+   "seafood"
+  ],
+  "sortOrder": 32
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Beef burger",
+  "description": "Grilled beef patty, cheddar, tomato and pickles in a brioche bun, with fries.",
+  "priceLKR": 3000,
+  "labels": [],
+  "sortOrder": 33
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Chicken Caesar salad",
+  "description": "Grilled chicken, cos lettuce, parmesan, croutons and Caesar dressing.",
+  "priceLKR": 2600,
+  "labels": [],
+  "sortOrder": 34
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Penne arrabbiata",
+  "description": "Penne in a spicy tomato and garlic sauce, with parmesan.",
+  "priceLKR": 2400,
+  "labels": [
+   "vegetarian",
+   "spicy"
+  ],
+  "sortOrder": 35
+ },
+ {
+  "meal": "lunch",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Ploughman's platter",
+  "description": "Cheddar, ham, boiled egg, pickles, salad and crusty bread.",
+  "priceLKR": 2700,
+  "labels": [],
+  "sortOrder": 36
+ },
+ {
+  "meal": "lunch",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Watalappan",
+  "description": "Steamed coconut custard with jaggery, cardamom and cashew.",
+  "priceLKR": 1100,
+  "labels": [
+   "vegetarian",
+   "gluten-free",
+   "contains-nuts"
+  ],
+  "sortOrder": 37
+ },
+ {
+  "meal": "lunch",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Fresh fruit and curd",
+  "description": "Buffalo curd with kithul treacle and seasonal fruit.",
+  "priceLKR": 1000,
+  "labels": [
+   "vegetarian",
+   "gluten-free"
+  ],
+  "sortOrder": 38
+ },
+ {
+  "meal": "lunch",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Apple crumble",
+  "description": "Baked apple with oat crumble, served with custard or ice cream.",
+  "priceLKR": 1300,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 39
+ },
+ {
+  "meal": "lunch",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Lemon tart",
+  "description": "Buttery pastry with lemon curd and cream.",
+  "priceLKR": 1200,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 40
+ },
+ {
+  "meal": "lunch",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Fresh lime soda",
+  "description": "Sweet, salted or mixed.",
+  "priceLKR": 600,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 41
+ },
+ {
+  "meal": "lunch",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Iced tea",
+  "description": "Ceylon black tea, chilled, with lemon.",
+  "priceLKR": 600,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 42
+ },
+ {
+  "meal": "lunch",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Soft drinks",
+  "description": "Cola, lemonade, ginger beer or soda water.",
+  "priceLKR": 500,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 43
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Crab cakes",
+  "description": "Pan-fried crab cakes with lime mayonnaise and herb salad.",
+  "priceLKR": 2900,
+  "labels": [
+   "seafood"
+  ],
+  "sortOrder": 44
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Devilled cashew nuts",
+  "description": "Wok-tossed cashews with peppers and onion in a sweet-hot sauce.",
+  "priceLKR": 1600,
+  "labels": [
+   "vegan",
+   "spicy",
+   "dairy-free",
+   "contains-nuts"
+  ],
+  "sortOrder": 45
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Tempered mushroom soup",
+  "description": "Creamy mushroom soup finished with garlic and pepper.",
+  "priceLKR": 1400,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 46
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Prawn cocktail",
+  "description": "Chilled prawns, baby gem and Marie Rose sauce.",
+  "priceLKR": 2800,
+  "labels": [
+   "seafood"
+  ],
+  "sortOrder": 47
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Chicken liver pâté",
+  "description": "Smooth pâté with onion chutney and toasted sourdough.",
+  "priceLKR": 2200,
+  "labels": [],
+  "sortOrder": 48
+ },
+ {
+  "meal": "dinner",
+  "category": "Starters",
+  "course": "starter",
+  "name": "Caprese salad",
+  "description": "Tomato, mozzarella and basil with olive oil and balsamic.",
+  "priceLKR": 1900,
+  "labels": [
+   "vegetarian",
+   "gluten-free"
+  ],
+  "sortOrder": 49
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Jaffna crab curry",
+  "description": "Whole mud crab in a roasted-spice curry, served with rice.",
+  "priceLKR": 6200,
+  "labels": [
+   "spicy",
+   "seafood",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 50
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Black pork curry",
+  "description": "Slow-cooked pork in dark roasted spices, with yellow rice and sambol.",
+  "priceLKR": 3600,
+  "labels": [
+   "spicy",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 51
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Chicken in coconut gravy",
+  "description": "Chicken simmered in a mild coconut curry, with rice.",
+  "priceLKR": 3200,
+  "labels": [
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 52
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Vegetable rice and curry",
+  "description": "Seasonal vegetable curries, dhal and sambol with red rice.",
+  "priceLKR": 2600,
+  "labels": [
+   "vegan",
+   "spicy",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 53
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Devilled prawns",
+  "description": "Large prawns in a sweet-hot tomato sauce, with fried rice.",
+  "priceLKR": 4200,
+  "labels": [
+   "spicy",
+   "seafood",
+   "dairy-free"
+  ],
+  "sortOrder": 54
+ },
+ {
+  "meal": "dinner",
+  "category": "Sri Lankan mains",
+  "course": "main",
+  "name": "Seafood platter for one",
+  "description": "Grilled prawns, calamari and catch of the day, with garlic butter and salad.",
+  "priceLKR": 5400,
+  "labels": [
+   "seafood",
+   "gluten-free"
+  ],
+  "sortOrder": 55
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Beef steak",
+  "description": "200 g grilled beef with pepper sauce, vegetables and potatoes.",
+  "priceLKR": 4800,
+  "labels": [],
+  "sortOrder": 56
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Roast chicken",
+  "description": "Half chicken roasted with herbs, roast potatoes, vegetables and gravy.",
+  "priceLKR": 3800,
+  "labels": [],
+  "sortOrder": 57
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Lamb chops",
+  "description": "Grilled lamb with rosemary jus, mashed potato and green beans.",
+  "priceLKR": 5200,
+  "labels": [
+   "gluten-free"
+  ],
+  "sortOrder": 58
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Fish pie",
+  "description": "Cod and prawns in a creamy sauce under mashed potato, with peas.",
+  "priceLKR": 3600,
+  "labels": [
+   "seafood"
+  ],
+  "sortOrder": 59
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Bangers and mash",
+  "description": "Pork sausages, creamy mash, onion gravy and peas.",
+  "priceLKR": 3000,
+  "labels": [],
+  "sortOrder": 60
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Mushroom risotto",
+  "description": "Creamy arborio rice with mushrooms, parmesan and thyme.",
+  "priceLKR": 2800,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 61
+ },
+ {
+  "meal": "dinner",
+  "category": "English and western mains",
+  "course": "main",
+  "name": "Spaghetti carbonara",
+  "description": "Spaghetti with bacon, egg yolk, pecorino and black pepper.",
+  "priceLKR": 3000,
+  "labels": [],
+  "sortOrder": 62
+ },
+ {
+  "meal": "dinner",
+  "category": "Sides",
+  "course": "side",
+  "name": "Chips or mashed potato",
+  "description": "Hand-cut chips or buttery mash.",
+  "priceLKR": 800,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 63
+ },
+ {
+  "meal": "dinner",
+  "category": "Sides",
+  "course": "side",
+  "name": "Garden salad",
+  "description": "Leaves, tomato, cucumber and house dressing.",
+  "priceLKR": 900,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 64
+ },
+ {
+  "meal": "dinner",
+  "category": "Sides",
+  "course": "side",
+  "name": "Steamed vegetables",
+  "description": "Seasonal vegetables with butter.",
+  "priceLKR": 900,
+  "labels": [
+   "vegetarian",
+   "gluten-free"
+  ],
+  "sortOrder": 65
+ },
+ {
+  "meal": "dinner",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Chocolate and coconut tart",
+  "description": "Dark chocolate tart with a coconut cream.",
+  "priceLKR": 1400,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 66
+ },
+ {
+  "meal": "dinner",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Sticky toffee pudding",
+  "description": "Warm date sponge with toffee sauce and vanilla ice cream.",
+  "priceLKR": 1500,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 67
+ },
+ {
+  "meal": "dinner",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Crème brûlée",
+  "description": "Vanilla custard with a caramelised sugar top.",
+  "priceLKR": 1500,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 68
+ },
+ {
+  "meal": "dinner",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Cheesecake",
+  "description": "Baked vanilla cheesecake with passion fruit sauce.",
+  "priceLKR": 1400,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 69
+ },
+ {
+  "meal": "dinner",
+  "category": "Desserts",
+  "course": "dessert",
+  "name": "Ice cream (3 scoops)",
+  "description": "Vanilla, chocolate, coconut or king coconut sorbet.",
+  "priceLKR": 1000,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 70
+ },
+ {
+  "meal": "dinner",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Ceylon tea or coffee",
+  "description": "Pot of tea, or coffee of your choice.",
+  "priceLKR": 700,
+  "labels": [
+   "vegetarian"
+  ],
+  "sortOrder": 71
+ },
+ {
+  "meal": "dinner",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Fresh juice",
+  "description": "Orange, pineapple, watermelon or passion fruit.",
+  "priceLKR": 700,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 72
+ },
+ {
+  "meal": "dinner",
+  "category": "Drinks",
+  "course": "drink",
+  "name": "Soft drinks",
+  "description": "Cola, lemonade, ginger beer or soda water.",
+  "priceLKR": 500,
+  "labels": [
+   "vegan",
+   "gluten-free",
+   "dairy-free"
+  ],
+  "sortOrder": 73
+ }
+]
