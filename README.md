@@ -42,6 +42,16 @@ Dining requests are checked by `functions/messages/dining.py` (`validate_order`)
 (starter, main course, side, dessert, drink). A dish of another meal is refused with the meal it belongs to. Breakfast has only
 mains and drinks, so a breakfast order is one dish and one drink.
 
+## Dining requests
+
+Xenia takes a dining request in four steps, each checked by code (`messages/dining.py`, `messages/dining_request.py`), not by
+the model: `list_menu_dishes` (names and prices), `check_dining_order` (one meal, only dishes on that menu, at most one dish per
+course, and the guest must be inside their confirmed booking time: check-in time on the first day to check-out time on the last),
+then the guest chooses **room** or **restaurant** and confirms, and `place_dining_request` saves the request in `diningRequests`.
+A request holds the guest (`uid`, name), the booking and room (`roomId`, `roomNumber`; always the room on the guest's own booking),
+the meal, `service` (room or restaurant), the dishes with their prices, `totalLKR` and `status: requested`. One request per guest
+message, at most three waiting per guest. Admins can read the collection; staff screens and status changes come later.
+
 ## Layout
 
 ```

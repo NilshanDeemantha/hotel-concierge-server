@@ -70,6 +70,10 @@ service cloud.firestore {
     match /menuItems/{id} {
       allow read: if isAdmin();
     }
+    // Dining requests (what a guest ordered, for which room, the total), written by the server; admins may read.
+    match /diningRequests/{id} {
+      allow read: if isAdmin();
+    }
     match /availability/{id} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && validAvailability(id, request.resource.data);

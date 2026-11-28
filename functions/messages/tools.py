@@ -8,13 +8,14 @@ import traceback
 
 from firebase_admin import firestore
 
-from messages import booking, hotel
+from messages import booking, dining, dining_request, hotel
 from payments import config as pay, refunds
 
 
 def make_tools(
     uid: str, conversation_id: str, message_id: str, booked: list[dict], images: list[str],
     already_sent: frozenset = frozenset(), resend: list[dict] | None = None, cancelled: list[tuple] | None = None,
+    dining_made: list[dict] | None = None,
 ) -> list:
     """The tool functions for one guest message. Bookings that succeed are appended to `booked`, and photos to send
     with the answer to `images` (the model never writes image links itself). `already_sent` are the photos earlier
@@ -22,11 +23,12 @@ def make_tools(
     asked for again are appended to `resend`, and bookings the guest cancelled to `cancelled` as (booking, refund quote)."""
     resend = resend if resend is not None else []
     cancelled = cancelled if cancelled is not None else []
+    dining_made = dining_made if dining_made is not None else []
 
     def guarded(fn):
         try:
             return fn()
-        except booking.BookingError as e:
+        except (booking.BookingError, dining.DiningError) as e:
             print(f"xenia tool refused: {e.message}")  # so a wrong refusal can be found in the logs
             return {"error": e.message}
         except Exception:
@@ -146,5 +148,69 @@ def make_tools(
 
         return guarded(run)
 
+    def list_menu_dishes(meal: str) -> dict:
+        """Lists the dishes of one meal's menu with their course, price in LKR, labels and a short description. Use it
+        to answer questions about dishes and prices and to find the exact dish names before checking an order.
+
+        Args:
+            meal: "breakfast", "lunch" or "dinner".
+        """
+        def run():
+            key = (meal or "").strip().lower()
+            if key not in dining.MEALS:
+                raise dining.DiningError("Please tell me which meal: breakfast, lunch or dinner.")
+            found = [d.to_dict() for d in firestore.client().collection("menuItems").limit(dining.MAX_MENU).stream()]
+            rows = sorted((d for d in found if d.get("meal") == key and d.get("available") is True), key=lambda d: d.get("sortOrder", 0))
+            return {"meal": key, "dishes": [{k: d.get(k) for k in ("name", "course", "priceLKR", "labels", "description")} for d in rows]}
+
+        return guarded(run)
+
+    def check_dining_order(meal: str, dishes: list[str]) -> dict:
+        """Checks a dining order against the menu and the guest's stay, without placing it. Call it as soon as the guest
+        names dishes. The rules: one meal per order, only dishes on that meal's menu, and at most one dish per course
+        (one starter, one main course, one side, one dessert, one drink). If it returns an error, tell the guest exactly
+        that and help them choose again. If it is fine, say the dishes and the total and ask whether the food should be
+        brought to their room or they will come to the restaurant, then ask them to confirm.
+
+        Args:
+            meal: "breakfast", "lunch" or "dinner".
+            dishes: the exact dish names from the menu.
+        """
+        def run():
+            db = firestore.client()
+            order = dining.validate_order(db, meal, dishes)
+            stay = dining_request.active_stay(db, uid, dining_request.now())
+            if not stay:
+                raise dining.DiningError("Dining requests are for guests during their stay, and I could not find a confirmed "
+                                         "booking on your account that covers right now. If you are staying with us, please contact reception.")
+            return {**order, "room": stay["roomNumber"]}
+
+        return guarded(run)
+
+    def place_dining_request(meal: str, dishes: list[str], service: str, guest_has_confirmed: bool) -> dict:
+        """Places the guest's dining request for the kitchen. Call it only after check_dining_order was fine and the
+        guest has clearly said yes to the exact dishes and total AND has said whether the food should be brought to
+        their room or they will come to the restaurant. A message with the details is sent automatically.
+
+        Args:
+            meal: "breakfast", "lunch" or "dinner".
+            dishes: the exact dish names from the menu.
+            service: "room" to have the food brought to the guest's room, or "restaurant" to eat at the restaurant.
+            guest_has_confirmed: true only if the guest clearly confirmed these dishes, the total and the service.
+        """
+        print(f"xenia place_dining_request: {meal!r} {dishes!r} {service!r} confirmed={guest_has_confirmed!r}")
+        if guest_has_confirmed is not True:
+            return {"error": "Tell the guest the dishes and the total, ask room or restaurant, and ask them to confirm first."}
+
+        def run():
+            made = dining_request.create(firestore.client(), uid=uid, conversation_id=conversation_id, message_id=message_id,
+                                         meal=meal, dishes=dishes, service=service)
+            if not any(r["reference"] == made["reference"] for r in dining_made):
+                dining_made.append(made)
+            return {"requested": True, "reference": made["reference"], "totalLKR": made["totalLKR"], "service": made["service"],
+                    "note": "The request is with the kitchen. A message with the details follows automatically."}
+
+        return guarded(run)
+
     return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
-            check_cancellation, cancel_booking]
+            check_cancellation, cancel_booking, list_menu_dishes, check_dining_order, place_dining_request]
