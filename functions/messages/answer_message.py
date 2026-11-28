@@ -5,7 +5,7 @@ import random
 from firebase_admin import firestore, functions
 from firebase_functions import options, tasks_fn
 
-from messages import booking, chat, dining_request, menu, reply
+from messages import booking, chat, dining_request, escalation, menu, reply
 from payments import config, notices
 
 REGION = "asia-south1"  # keep in step with main.py
@@ -36,6 +36,8 @@ def answer(req: tasks_fn.CallableRequest) -> None:
     message = db.collection("messages").document(message_id).get().to_dict()
     if not message or db.collection("messages").document(chat.reply_id(message_id)).get().exists:
         return  # message gone, or already answered
+    if escalation.is_waiting(db, message["conversationId"]):
+        return  # a person has this conversation: Xenia stays quiet until they reply or hand it back
     chat.set_typing(db.collection("conversations").document(message["conversationId"]), True)
     images: list[str] = []  # photos the model asked to send; saved with the answer
     resend: list[dict] = []  # bookings whose payment link the guest asked for again

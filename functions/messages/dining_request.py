@@ -57,7 +57,7 @@ def create(db, *, uid: str, conversation_id: str, message_id: str, meal: str, di
     stay = active_stay(db, uid, now())
     if not stay:
         raise DiningError("Dining requests are for guests during their stay, and I could not find a confirmed booking on your "
-                          "account that covers right now. If you are staying with us, please contact reception.")
+                          "account that covers right now.")
     ref = db.collection("diningRequests").document(request_id(message_id))
     done = ref.get()
     if done.exists:
@@ -65,7 +65,7 @@ def create(db, *, uid: str, conversation_id: str, message_id: str, meal: str, di
     open_now = [d for d in db.collection("diningRequests").where(filter=FieldFilter("uid", "==", uid)).stream()
                 if (d.to_dict() or {}).get("status") == "requested"]
     if len(open_now) >= MAX_OPEN_PER_GUEST:
-        raise DiningError("You already have several dining requests waiting. Please wait for those, or ask reception.")
+        raise DiningError("You already have several dining requests waiting. Please wait for those first.")
     profile = db.collection("users").document(uid).get()
     request = {
         "uid": uid, "conversationId": conversation_id, "messageId": message_id,
@@ -92,7 +92,7 @@ def request_text(r: dict) -> str:
     )
     where = f"will be brought to room {r['roomNumber']}" if r["service"] == "room" else "will be served at the restaurant"
     return (f"Your dining request {r['reference']} is received: {dishes}. Total LKR {r['totalLKR']:,}. It {where}. "
-            "If you need to change anything, please contact reception.")
+            "To change anything, just tell me here.")
 
 
 def send(message: dict, message_id: str, r: dict) -> None:

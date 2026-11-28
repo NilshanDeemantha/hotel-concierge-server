@@ -50,7 +50,7 @@ def parse_stay(check_in: str, check_out: str) -> list[date]:
     if nights[0] > today() + timedelta(days=MAX_DAYS_AHEAD):
         raise BookingError(f"Bookings open up to {MAX_DAYS_AHEAD} days ahead.")
     if len(nights) > MAX_BOOKING_NIGHTS:
-        raise BookingError(f"A booking can be at most {MAX_BOOKING_NIGHTS} nights. Ask reception for longer stays.")
+        raise BookingError(f"A booking can be at most {MAX_BOOKING_NIGHTS} nights.")
     return nights
 
 
@@ -183,7 +183,7 @@ def book_room(db, *, uid: str, conversation_id: str, message_id: str, room_id: s
     bid = booking_id(message_id, room_id, check_in, check_out)
     others = {b.id for b in upcoming} - {bid}
     if len(others) >= MAX_UPCOMING_PER_GUEST:
-        raise BookingError("You already have the most bookings I can make for one guest. Please contact reception.")
+        raise BookingError("You already have the most bookings I can make for one guest.")
     if sum(1 for b in upcoming if b.id != bid and (b.to_dict() or {}).get("status") == "payment_pending") >= pay.MAX_PENDING_PER_GUEST:
         raise BookingError("You have bookings waiting for payment. Please pay for them, or let them expire, before booking more.")
     profile = db.collection("users").document(uid).get()
@@ -225,5 +225,5 @@ def confirmation_text(b: dict) -> str:
         f"Check-in is from {b['checkInTime']} on {_long_date(b['checkIn'])} and check-out is by {b['checkOutTime']} "
         f"on {_long_date(b['checkOut'])}. The room is held until {pay.format_time(b['paymentDeadline'])}: pay with the "
         "payment link in my next message before then, or the booking is cancelled automatically. "
-        "Please keep your reference for reception."
+        "Please keep your reference."
     )

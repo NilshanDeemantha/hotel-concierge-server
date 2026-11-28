@@ -3,7 +3,7 @@
 from firebase_admin import firestore
 
 from admin.guard import AdminError
-from messages import chat
+from messages import chat, escalation
 
 
 def send_staff_message(body: dict) -> dict:
@@ -35,7 +35,7 @@ def send_staff_message(body: dict) -> dict:
     )
     batch.update(
         conversation,
-        {"messageCount": firestore.Increment(1), "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": chat._expire_at()},
+        {"messageCount": firestore.Increment(1), "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": chat._expire_at(), **escalation.HANDED_BACK},
     )
     batch.commit()
     return {"messageId": message.id}

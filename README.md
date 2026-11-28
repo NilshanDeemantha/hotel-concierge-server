@@ -68,6 +68,15 @@ per guest (the oldest goes first), no duplicates, nothing that looks like a card
 expire after a year. The notes go back into the prompt labelled as the guest's own words, below the bookings, which win if
 they differ.
 
+## Handing a conversation to staff
+
+When Xenia cannot give the guest what they ask for (a question the tools do not answer, a request she cannot do, a complaint,
+anything she is unsure of) she calls `escalate_to_staff` (`messages/escalation.py`). The conversation gets `needsAdmin`,
+`escalationReason` and `escalatedAt`, and she stays quiet in it: `answer` skips a waiting conversation. The guest is only told
+she will find out and come back in the chat, never that it was passed on, and Xenia no longer sends guests to reception.
+An admin reply (`admin_send_message`) or `admin_hand_back` clears the flag and Xenia takes over again with the reply in her history.
+The dashboard counts and lists the waiting conversations first.
+
 ## Layout
 
 ```

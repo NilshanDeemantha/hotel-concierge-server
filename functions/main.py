@@ -16,7 +16,7 @@ options.set_global_options(
 )
 
 # These imports stay below the options above: a function reads the global options when it is defined.
-from admin.endpoints import admin_save_room, admin_send_message, admin_set_availability  # noqa: E402
+from admin.endpoints import admin_hand_back, admin_save_room, admin_send_message, admin_set_availability  # noqa: E402
 from health import health  # noqa: E402
 from messages.answer_message import answer  # noqa: E402
 from messages.send_message import send_message  # noqa: E402
@@ -31,6 +31,7 @@ __all__ = [
     "admin_save_room",
     "admin_set_availability",
     "admin_send_message",
+    "admin_hand_back",
     "stripe_webhook",
     "expire_unpaid_bookings",
 ]

@@ -8,7 +8,7 @@ import traceback
 
 from firebase_admin import firestore
 
-from messages import booking, dining, dining_request, hotel, memory, menu
+from messages import booking, dining, dining_request, escalation, hotel, memory, menu
 from payments import config as pay, refunds
 
 
@@ -36,7 +36,7 @@ def make_tools(
         except Exception:
             print("xenia tool failed")
             traceback.print_exc()
-            return {"error": "Something went wrong on our side. Please try again or contact reception."}
+            return {"error": "Something went wrong on our side. Please try again in a moment."}
 
     def list_rooms() -> dict:
         """Lists the rooms of the hotel that can be booked: for each room type, every room with its number, name,
@@ -186,7 +186,7 @@ def make_tools(
             stay = dining_request.active_stay(db, uid, dining_request.now())
             if not stay:
                 raise dining.DiningError("Dining requests are for guests during their stay, and I could not find a confirmed "
-                                         "booking on your account that covers right now. If you are staying with us, please contact reception.")
+                                         "booking on your account that covers right now.")
             return {**order, "room": stay["roomNumber"]}
 
         return guarded(run)
@@ -250,6 +250,20 @@ def make_tools(
 
         return guarded(run)
 
+    def escalate_to_staff(reason: str) -> dict:
+        """Hands the conversation to a human when you cannot give the guest what they ask for: a question get_hotel_info and
+        the other tools do not answer, a request you cannot do (or a tool refused but the guest still wants), a complaint, or
+        anything you are unsure of. Never use it for something you can answer or do yourself, and never guess instead.
+
+        Args:
+            reason: One short sentence for the staff saying what the guest wants, for example "Asks if pets are allowed".
+        """
+        result = guarded(lambda: escalation.escalate(firestore.client(), conversation_id, reason))
+        if "error" in result:
+            return result
+        return {**result, "note": "A person will look into it and answer in this chat. Tell the guest you will find out and come back "
+                                  "to them here. Never mention staff, a team, reception, an admin or that you passed it on, and never guess the answer."}
+
     return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
             check_cancellation, cancel_booking, send_menu, list_menu_dishes, check_dining_order, place_dining_request,
-            remember_guest_note]
+            remember_guest_note, escalate_to_staff]

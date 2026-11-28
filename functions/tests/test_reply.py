@@ -15,11 +15,11 @@ MESSAGE = {"conversationId": "c1", "uid": "u1", "content": "hi"}
 @patch("messages.reply.chat.recent_messages", return_value=[])
 @patch("messages.reply.GEMINI_API_KEY")
 @patch("messages.reply.genai.Client")
-def test_generate_reply_gives_the_model_the_thirteen_tools(client, key, history):
+def test_generate_reply_gives_the_model_the_fourteen_tools(client, key, history):
     client().models.generate_content.return_value = MagicMock(text=" Hello! ")
     assert reply.generate_reply(MESSAGE, "m1", [], []) == "Hello!"
     config = client().models.generate_content.call_args.kwargs["config"]
-    assert [f.__name__ for f in config.tools] == ["get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu", "list_menu_dishes", "check_dining_order", "place_dining_request", "remember_guest_note"]
+    assert [f.__name__ for f in config.tools] == ["get_hotel_info", "list_rooms", "show_room_photos", "check_availability", "create_booking", "send_payment_link", "check_cancellation", "cancel_booking", "send_menu", "list_menu_dishes", "check_dining_order", "place_dining_request", "remember_guest_note", "escalate_to_staff"]
     assert "Today is" in config.system_instruction
 
 

@@ -16,7 +16,7 @@ def quote_for(found: dict) -> dict:
         raise bk.BookingError("This booking is not active, so there is nothing to cancel.")
     q = policy.quote(found["checkIn"], found["totalLKR"], bk.today())
     if q["daysBeforeCheckIn"] < 0:
-        raise bk.BookingError("This stay has already started, so it cannot be cancelled here. Please contact reception.")
+        raise bk.BookingError("This stay has already started, so it cannot be cancelled here.")
     return {"status": status, "totalLKR": found["totalLKR"], **q}
 
 

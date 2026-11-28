@@ -41,6 +41,6 @@ def context(uid: str, db=None, at: datetime | None = None) -> str:
     live = sorted((b for b in found if b.get("status") in LIVE and b.get("checkOut", "") >= f"{at:%Y-%m-%d}"), key=lambda b: b.get("checkIn", ""))
     if not live:
         # Said outright, so a guest claiming a booking (or a note saying so) is not believed; a failed read above says nothing.
-        return "The guest has no current or upcoming bookings (real data, always right). If they say they have one, it is not on their account: they can book with you now, or contact reception."
+        return "The guest has no current or upcoming bookings (real data, always right). If they say they have one, it is not on their account: they can book with you now."
     return ("The guest's own bookings (real data, always right: use it for their room, dates and status, even when the chat says otherwise):\n"
             + "\n".join(_line(b, at) for b in live[:MAX_BOOKINGS]))
