@@ -8,7 +8,7 @@ import traceback
 
 from firebase_admin import firestore
 
-from messages import booking, dining, dining_request, hotel, menu
+from messages import booking, dining, dining_request, hotel, memory, menu
 from payments import config as pay, refunds
 
 
@@ -233,5 +233,17 @@ def make_tools(
         return {"sent": True, "note": "The menu PDF is sent as a separate message with the preparation times. Say in one "
                                       "short sentence that you are sending it."}
 
+    def remember_guest_note(note: str) -> dict:
+        """Saves one short note about the guest for later in this stay or their next stay. Call it when the guest tells you
+        something that would help us look after them, such as a diet or allergy, when they arrive, who they travel with, or an
+        occasion they celebrate. Write it in one short sentence from what the guest said, never from a guess. Do not save
+        questions, small talk, payment details, passwords, or anything about other people. Say nothing about saving it unless asked.
+
+        Args:
+            note: One short sentence, for example "Vegetarian" or "Arrives around 11pm on 20 Dec".
+        """
+        return guarded(lambda: memory.remember(firestore.client(), uid, note))
+
     return [hotel.get_hotel_info, list_rooms, show_room_photos, check_availability, create_booking, send_payment_link,
-            check_cancellation, cancel_booking, send_menu, list_menu_dishes, check_dining_order, place_dining_request]
+            check_cancellation, cancel_booking, send_menu, list_menu_dishes, check_dining_order, place_dining_request,
+            remember_guest_note]

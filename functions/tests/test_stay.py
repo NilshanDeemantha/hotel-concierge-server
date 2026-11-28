@@ -62,7 +62,9 @@ def test_a_failed_read_gives_no_context_instead_of_an_error():
 
 def test_the_reply_prompt_carries_the_guests_bookings():
     with patch("messages.reply.chat.recent_messages", return_value=[]), patch("messages.reply.GEMINI_API_KEY"), \
-         patch("messages.reply.genai.Client") as client, patch("messages.reply.stay.context", return_value="BOOKINGS HERE"):
+         patch("messages.reply.genai.Client") as client, patch("messages.reply.stay.context", return_value="BOOKINGS HERE"), \
+         patch("messages.reply.memory.context", return_value="NOTES HERE"):
         client().models.generate_content.return_value = MagicMock(text="ok")
         reply.generate_reply({"conversationId": "c1", "uid": "u1", "content": "my room?"}, "m1", [], [])
-    assert "BOOKINGS HERE" in client().models.generate_content.call_args.kwargs["config"].system_instruction
+    prompt = client().models.generate_content.call_args.kwargs["config"].system_instruction
+    assert "BOOKINGS HERE\nNOTES HERE" in prompt

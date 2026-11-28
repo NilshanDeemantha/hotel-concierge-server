@@ -61,6 +61,13 @@ total, check-in/out times and status (staying now, paid, waiting for payment). I
 have not ended, up to three, soonest first; cancelled, expired and past ones are left out, so it is always current and
 nothing is copied or stored. No payment details or guest name are included. If the read fails Xenia answers without it.
 
+Beyond the bookings, Xenia decides what else is worth keeping: when a guest says something that helps us look after them
+(a diet or allergy, an arrival time, an occasion) she calls `remember_guest_note` with one short sentence
+(`messages/memory.py`, collection `guestMemory/{uid}`, admin-read only). The code only sets limits: 120 characters, 10 notes
+per guest (the oldest goes first), no duplicates, nothing that looks like a card or phone number or a password, and notes
+expire after a year. The notes go back into the prompt labelled as the guest's own words, below the bookings, which win if
+they differ.
+
 ## Layout
 
 ```
